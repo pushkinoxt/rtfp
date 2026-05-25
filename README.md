@@ -8,7 +8,7 @@ The site is at **[rtfp.io](https://rtfp.io)**.
 
 Since the H2 2025 reporting cycle (published February 2026), regulated platforms are required to file their DSA transparency reports using a harmonised template defined by Commission Implementing Regulation 2024/2835. For the first time, the major providers can be compared directly.
 
-RTFP loads the harmonised filings into a normalised database, surfaces the cross-platform comparisons no individual provider reports themselves, and presents the findings on a static website. We'll start with TikTok, Instagram, LinkedIn, and X.
+RTFP loads the harmonised filings into a normalised database, surfaces the cross-platform comparisons that no single provider would report individually, and presents the findings.
 
 ## Architecture
 
@@ -22,8 +22,8 @@ The database is publicly queryable via a REST API. See the [API reference](https
 
 ## Status
 
-Work in progress. The database is live; the site is being built page by page through May/June 2026.
+Work in progress. The database is live. The site is being built page by page through May - June 2026.
 
 ## Contact
 
-[Oscar] — [@pushkinoxt]
+Oscar @pushkinoxt
