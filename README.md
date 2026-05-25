@@ -1,46 +1,29 @@
-# Astro Starter Kit: Basics
+# RTFP
 
-```sh
-npm create astro@latest -- --template basics
-```
+A cross-platform comparison of the major platforms' transparency reports under the EU Digital Services Act.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+The site is at **[rtfp.io](https://rtfp.io)**.
 
-## 🚀 Project Structure
+## What this is
 
-Inside of your Astro project, you'll see the following folders and files:
+Since the H2 2025 reporting cycle (published February 2026), regulated platforms are required to file their DSA transparency reports using a harmonised template defined by Commission Implementing Regulation 2024/2835. For the first time, the major providers can be compared directly.
 
-```text
-/
-├── public/
-│   └── favicon.svg
-├── src
-│   ├── assets
-│   │   └── astro.svg
-│   ├── components
-│   │   └── Welcome.astro
-│   ├── layouts
-│   │   └── Layout.astro
-│   └── pages
-│       └── index.astro
-└── package.json
-```
+RTFP loads the harmonised filings into a normalised database, surfaces the cross-platform comparisons no individual provider reports themselves, and presents the findings on a static website. We'll start with TikTok, Instagram, LinkedIn, and X.
 
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+## Architecture
 
-## 🧞 Commands
+- **Database**: Supabase (PostgreSQL with PostgREST exposing read-only views)
+- **Site**: Astro, statically built and deployed to Vercel
+- **Source data**: Provider CSV filings under Annex II of the Implementing Regulation
 
-All commands are run from the root of the project, from a terminal:
+## Querying the data directly
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+The database is publicly queryable via a REST API. See the [API reference](https://yhbsqzktmsmctsxmpchy.supabase.co/rest/v1/) for endpoints, or browse the example URLs in the project documentation.
 
-## 👀 Want to learn more?
+## Status
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Work in progress. The database is live; the site is being built page by page through May/June 2026.
+
+## Contact
+
+[Oscar] — [@pushkinoxt]
