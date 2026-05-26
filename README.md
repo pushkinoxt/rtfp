@@ -18,7 +18,7 @@ RTFP loads the harmonised filings into a normalised database, surfaces the cross
 
 ## Querying the data directly
 
-The database is publicly queryable via a REST API. See the [API reference](https://yhbsqzktmsmctsxmpchy.supabase.co/rest/v1/) for endpoints, or browse the example URLs in the project documentation.
+The database is publicly queryable via a REST API. See the [API documentation](https://rtfp.io/api) for all endpoints and example URLs.
 
 ## Status
 
