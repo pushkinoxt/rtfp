@@ -1,23 +1,189 @@
-<!doctype html>
-<html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
-	</head>
-	<body>
-		<slot />
-	</body>
-</html>
+---
+// src/layouts/Layout.astro
+// The single shared layout for every page on RTFP. Owns the design system:
+// width, typography, header, nav, footer, base styles. Pages slot their
+// content into <slot/> and pass page-specific metadata via Astro.props.
 
-<style>
-	html,
-	body {
-		margin: 0;
-		width: 100%;
-		height: 100%;
-	}
-</style>
+const { title, description } = Astro.props;
+
+const PUBLIC_URL = "https://rtfp.io";
+---
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+	<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+	<link rel="icon" href="/favicon.ico" />
+    <meta name="description" content={description} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={PUBLIC_URL} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:site_name" content="RTFP" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:url" content={PUBLIC_URL} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+
+    <style is:global>
+      :root {
+        --bg: #fafaf9;
+        --ink: #1c1917;
+        --ink-dim: #57534e;
+        --ink-faint: #78716c;
+        --border: #e7e5e4;
+        --code-bg: #f0eee9;
+        --content-width: 56rem;
+        --content-width-wide: 64rem;
+      }
+
+      * { box-sizing: border-box; }
+
+      html { -webkit-text-size-adjust: 100%; }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        line-height: 1.6;
+      }
+
+      .page-header,
+      .page-main,
+      .page-footer {
+        max-width: var(--content-width);
+        margin: 0 auto;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+      }
+
+      /* The home page benefits from a slightly wider layout to accommodate
+         the two-column findings grid. Pages opt in via the .wide class. */
+      .wide .page-header,
+      .wide .page-main,
+      .wide .page-footer {
+        max-width: var(--content-width-wide);
+      }
+
+      .page-header {
+        padding-top: 3rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .page-header h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 0;
+      }
+      .page-header nav {
+        margin-top: 1rem;
+        display: flex;
+        gap: 1.5rem;
+        font-size: 0.95rem;
+        color: var(--ink-dim);
+      }
+      .page-header nav a {
+        color: inherit;
+        text-decoration: none;
+      }
+      .page-header nav a:hover { color: var(--ink); }
+      .page-header nav a[aria-current="page"] {
+        color: var(--ink);
+        font-weight: 500;
+      }
+
+      .page-main {
+        padding-top: 3rem;
+        padding-bottom: 3rem;
+      }
+      .page-main h2 {
+        font-size: clamp(1.75rem, 4vw, 2.5rem);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 0 0 1rem;
+      }
+      .page-main h3 {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin: 2.5rem 0 0.75rem;
+      }
+      .page-main h3:first-of-type { margin-top: 1.5rem; }
+      .page-main p {
+        font-size: 1rem;
+        color: var(--ink-dim);
+        margin: 0 0 1rem;
+      }
+      .page-main a {
+        color: var(--ink);
+        text-decoration: underline;
+        text-decoration-color: var(--ink-faint);
+        text-underline-offset: 3px;
+      }
+      .page-main a:hover { text-decoration-color: var(--ink); }
+
+      .page-main code,
+      .page-main pre {
+        font-family: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Code", monospace;
+      }
+      .page-main code {
+        font-size: 0.9em;
+        background: var(--code-bg);
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+      }
+      .page-main pre {
+        background: var(--code-bg);
+        padding: 0.75rem 1rem;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-size: 0.85em;
+        line-height: 1.4;
+      }
+      .page-main pre code { background: none; padding: 0; }
+
+      .page-footer {
+        padding-top: 2rem;
+        padding-bottom: 4rem;
+        border-top: 1px solid var(--border);
+        font-size: 0.85rem;
+        color: var(--ink-faint);
+      }
+      .page-footer p { margin: 0 0 0.5rem; }
+      .page-footer a { color: var(--ink-faint); }
+    </style>
+  </head>
+
+  <body class={Astro.props.wide ? "wide" : ""}>
+    <header class="page-header">
+      <h1>RTFP</h1>
+      <nav>
+        <a href="/" aria-current={Astro.url.pathname === "/" ? "page" : undefined}>Findings</a>
+        <a href="/sources" aria-current={Astro.url.pathname === "/sources" ? "page" : undefined}>Sources</a>
+        <a href="/api" aria-current={Astro.url.pathname === "/api" ? "page" : undefined}>API</a>
+        <a href="/about" aria-current={Astro.url.pathname === "/about" ? "page" : undefined}>About</a>
+      </nav>
+    </header>
+
+    <main class="page-main">
+      <slot />
+    </main>
+
+    <footer class="page-footer">
+      <slot name="footer">
+        <p>
+          Built from the H2 2025 harmonised DSA filings of the major platforms.
+          Updated as new filings are published.
+        </p>
+        <p>
+          Data is publicly queryable — see the <a href="/api">API documentation</a>.
+        </p>
+      </slot>
+    </footer>
+  </body>
+</html>

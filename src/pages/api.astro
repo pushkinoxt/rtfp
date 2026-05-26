@@ -1,37 +1,31 @@
 ---
 // src/pages/api.astro
-// Public REST API documentation. Lists every view exposed via PostgREST,
-// with example URLs that are clickable and return live JSON.
+import Layout from "../layouts/Layout.astro";
 
 const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  throw new Error("Missing PUBLIC_SUPABASE_URL or PUBLIC_SUPABASE_PUBLISHABLE_KEY environment variables.");
-}
-
-// Build a clickable API URL from a path-with-filters string.
 const apiUrl = (path) =>
   `${SUPABASE_URL}/rest/v1/${path}${path.includes('?') ? '&' : '?'}apikey=${SUPABASE_KEY}`;
 
 const sections = [
   {
-    title: "Reference tables (2)",
+    title: "Reference tables",
     intro: "Small lookup tables joined into most views — useful for understanding country and language coverage.",
     endpoints: [
-      { name: "country_codes", description: "30 rows: EU27 plus Iceland, Liechtenstein, Norway. Uses EU convention (EL for Greece, not GR; IE for Ireland, not GA).", example: "country_codes" },
+      { name: "country_codes", description: "30 rows: EU27 plus Iceland, Liechtenstein, Norway. Uses EU convention (EL for Greece, not GR, or IE for Ireland, not GA).", example: "country_codes" },
       { name: "language_codes", description: "24 rows: the official EU languages per Article 55 TFEU.", example: "language_codes" },
     ],
   },
   {
-    title: "Foundation (2)",
+    title: "Foundational",
     endpoints: [
       { name: "amar_by_country", description: "Average Monthly Active Recipients per Member State per provider, per Article 42(3) DSA. The headline platform-size metric.", example: "amar_by_country?country_code=eq.de", exampleNote: "Germany comparison" },
       { name: "provider_overview", description: "One row per (provider × filing). Provider metadata, filing dates, EU total AMAR.", example: "provider_overview" },
     ],
   },
   {
-    title: "Government orders — Article 15(1)(a) DSA (3)",
+    title: "Government orders — Article 15(1)(a) DSA",
     endpoints: [
       { name: "government_orders_by_country", description: "Orders from Member State authorities, by country, totals across categories. Article 9 (act against illegal content) and Article 10 (provide information) reported separately.", example: "government_orders_by_country?country_code=eq.fr", exampleNote: "France comparison" },
       { name: "government_orders_by_category", description: "Orders by content category (terrorism, hate speech, etc.), summed across Member States.", example: "government_orders_by_category?provider_slug=eq.tiktok&order=orders_act_received.desc.nullslast&limit=10" },
@@ -39,15 +33,15 @@ const sections = [
     ],
   },
   {
-    title: "Article 16 notices and Trusted Flaggers — Articles 15(1)(b) and 22 DSA (3)",
+    title: "Article 16 notices and Trusted Flaggers — Articles 15(1)(b) and 22 DSA",
     endpoints: [
       { name: "notices_by_category", description: "User notices submitted under the Article 16 mechanism, with the Trusted Flagger breakdown alongside.", example: "notices_by_category?provider_slug=eq.x&order=notices_received.desc.nullslast&limit=10" },
       { name: "trusted_flagger_intensity", description: "Share of notices coming from Trusted Flaggers (civil society organisations with privileged channels), per category.", example: "trusted_flagger_intensity?category_code=eq.TOTAL", exampleNote: "headline per-provider share" },
-      { name: "notice_response_times", description: "Median time to action notices, regular vs Trusted Flagger separately. The Article 22 prioritisation question.", example: "notice_response_times?category_code=eq.TOTAL" },
+      { name: "notice_response_times", description: "Median time to action notices, regular vs Trusted Flagger separately.", example: "notice_response_times?category_code=eq.TOTAL" },
     ],
   },
   {
-    title: "Own-initiative moderation — Articles 15(1)(c) and 15(1)(d) DSA (4)",
+    title: "Own-initiative moderation — Articles 15(1)(c) and 15(1)(d) DSA",
     endpoints: [
       { name: "moderation_volume_comparison", description: "All own-initiative moderation actions, with a basis column distinguishing illegal-content from ToS-violation enforcement, and a level column for granularity. Filter on level to avoid double-counting.", example: "moderation_volume_comparison?level=eq.total" },
       { name: "automation_share_by_provider", description: "Percentage of moderation taken solely by automated means, per provider and basis.", example: "automation_share_by_provider" },
@@ -56,30 +50,30 @@ const sections = [
     ],
   },
   {
-    title: "Appeals, disputes, misuse — Articles 20, 21, 23 DSA (3)",
+    title: "Appeals, disputes, misuse — Articles 20, 21, 23 DSA",
     endpoints: [
       { name: "internal_complaints_summary", description: "User complaints filed via the Article 20 internal mechanism, by what was originally moderated, with reversal and upheld outcomes.", example: "internal_complaints_summary?complaint_subject=eq.Number%20of%20complaints%20submitted%20to%20the%20internal-complaints%20mechanism" },
       { name: "out_of_court_disputes", description: "Article 21 disputes to certified out-of-court bodies, including share_provider_implemented_pct (the Article 24(1)(a) implementation rate).", example: "out_of_court_disputes" },
-      { name: "misuse_suspensions", description: "Article 23 suspensions for repeat offenders, split three ways per Article 24(1)(b): manifestly illegal content, unfounded notices, unfounded complaints.", example: "misuse_suspensions" },
+      { name: "misuse_suspensions", description: "Article 23 suspensions for repeat offenders, split three ways per Article 24(1)(b).", example: "misuse_suspensions" },
     ],
   },
   {
-    title: "Human resources — Article 42(2)(a) DSA (1)",
+    title: "Human resources — Article 42(2)(a) DSA",
     endpoints: [
-      { name: "human_moderators_by_language", description: "Moderator headcount per EU official language per provider.", example: "human_moderators_by_language?language_code=eq.el", exampleNote: "Greek moderators across providers; replace el with any EU language code" },
+      { name: "human_moderators_by_language", description: "Moderator headcount per EU official language per provider.", example: "human_moderators_by_language?language_code=eq.el", exampleNote: "Greek moderators across providers" },
     ],
   },
   {
-    title: "Cross-cutting derived metrics (3)",
+    title: "Cross-cutting derived metrics",
     intro: "These three views compute comparisons no individual provider reports themselves.",
     endpoints: [
       { name: "actions_per_user", description: "Own-initiative moderation volume divided by EU AMAR, per provider and basis.", example: "actions_per_user?basis=eq.tc" },
       { name: "amar_per_moderator", description: "EU AMAR divided by total human moderators per provider.", example: "amar_per_moderator?order=users_per_moderator.desc.nullslast" },
-      { name: "headline_metrics_normalised", description: "Long-format view exposing three absolute-volume metrics (account actions, government orders, Article 16 notices) with their per-million-AMAR rates alongside. Each row is one (provider × metric_key × dimension_key) combination.", example: "headline_metrics_normalised?metric_key=eq.account_actions&dimension_key=eq.all&order=per_million_amar.desc.nullslast" },
+      { name: "headline_metrics_normalised", description: "Long-format view exposing three absolute-volume metrics with their per-million-AMAR rates alongside.", example: "headline_metrics_normalised?metric_key=eq.account_actions&dimension_key=eq.all&order=per_million_amar.desc.nullslast" },
     ],
   },
   {
-    title: "Data quality and disclosure transparency (3)",
+    title: "Data quality and disclosure transparency",
     endpoints: [
       { name: "filings_overview", description: "One row per filing event with row-count summaries per source table.", example: "filings_overview" },
       { name: "anomalies_by_filing", description: "Methodology and data-quality observations recorded during import.", example: "anomalies_by_filing" },
@@ -88,126 +82,80 @@ const sections = [
   },
 ];
 ---
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>API — RTFP</title>
-    <meta name="description" content="Public REST API documentation for RTFP. 24 read-only endpoints covering DSA transparency filings." />
-    <style>
-      :root {
-        --bg: #fafaf9; --ink: #1c1917; --ink-dim: #57534e;
-        --ink-faint: #78716c; --border: #e7e5e4; --code-bg: #f0eee9;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-        background: var(--bg); color: var(--ink); line-height: 1.5;
-      }
-      header, main, footer { max-width: 56rem; margin: 0 auto; padding: 0 1.5rem; }
-      header { padding: 3rem 1.5rem 1rem; border-bottom: 1px solid var(--border); }
-      header h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
-      header nav { margin-top: 1rem; display: flex; gap: 1.5rem; font-size: 0.9rem; color: var(--ink-dim); }
-      header nav a { color: inherit; text-decoration: none; }
-      header nav a:hover { color: var(--ink); }
-      main { padding: 3rem 1.5rem; }
-      main h2 { font-size: 2rem; letter-spacing: -0.02em; margin: 0 0 1rem; }
-      main h3 { font-size: 1.15rem; margin: 3rem 0 0.5rem; }
-      main h3:first-of-type { margin-top: 2rem; }
-      main p { color: var(--ink-dim); margin: 0 0 1rem; }
-      main code, main pre {
-        font-family: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Code", monospace;
-        font-size: 0.9em;
-      }
-      main code { background: var(--code-bg); padding: 0.1rem 0.4rem; border-radius: 4px; }
-      main pre {
-        background: var(--code-bg); padding: 0.75rem 1rem; border-radius: 4px;
-        overflow-x: auto; font-size: 0.85em; line-height: 1.4;
-      }
-      main pre code { background: none; padding: 0; }
-      .endpoint { padding: 1.25rem 0; border-bottom: 1px solid var(--border); }
-      .endpoint:last-child { border-bottom: none; }
-      .endpoint .name {
-        display: inline-block; font-weight: 600; font-size: 0.95rem;
-        background: var(--code-bg); padding: 0.2rem 0.55rem; border-radius: 4px;
-        margin-right: 0.5rem;
-      }
-      .endpoint p { margin: 0.4rem 0; }
-      .endpoint .desc { color: var(--ink-dim); }
-      .endpoint .example-link {
-        font-family: ui-monospace, monospace; font-size: 0.85rem;
-        color: var(--ink); word-break: break-all;
-      }
-      .endpoint .note { color: var(--ink-faint); font-size: 0.85rem; }
-      footer { padding: 2rem 1.5rem 4rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--ink-faint); }
-    </style>
-  </head>
-  <body>
-    <header>
-      <h1>RTFP</h1>
-      <nav>
-        <a href="/">Findings</a>
-        <a href="/sources">Sources</a>
-        <a href="/api">API</a>
-        <a href="/about">About</a>
-      </nav>
-    </header>
 
-    <main>
-      <h2>API</h2>
-      <p>
-        The RTFP database is publicly queryable via a REST API. All URLs below return JSON. The
-        credential is a publishable key, designed to be shared openly.
-      </p>
+<Layout title="API — RTFP" description="Public REST API documentation for RTFP. 24 read-only endpoints covering DSA transparency filings.">
+  <h2>API</h2>
+  <p>
+    The RTFP database is publicly queryable via a REST API. All URLs below return JSON. The credential
+    is a publishable key, designed to be shared openly.
+  </p>
 
-      <h3>How to use this</h3>
-      <p>
-        Each URL returns JSON.
-      </p>
-      <p>
-        Basic filtering syntax (PostgREST): append <code>?column=operator.value</code>
-        to any URL. Common operators are <code>eq</code> (equals), <code>gt</code>,
-        <code>gte</code>, <code>lt</code>, <code>lte</code>, <code>like</code>
-        (pattern match), and <code>in</code> (set membership). Sort with
-        <code>order=column.desc.nullslast</code>. Limit with <code>limit=N</code>.
-        Pick columns with <code>select=col1,col2,col3</code>. Combine with <code>&</code>.
-      </p>
-      <p>Worked example - show the top 5 categories by notices received for X, in descending order, returning only the columns I want:</p>
-      <pre><code>?select=category_code,notices_received&provider_slug=eq.x&order=notices_received.desc.nullslast&limit=5</code></pre>
-      <p>
-        Full PostgREST query reference:
-        <a href="https://postgrest.org/en/stable/api.html">postgrest.org</a>.
-      </p>
+  <h3>How to use this</h3>
+  <p>
+    Each URL returns JSON. In most modern browsers JSON is shown directly. Some
+    setups benefit from a JSON Viewer browser extension to make it more readable.
+  </p>
+  <p>
+    Basic filtering syntax (PostgREST): append <code>?column=operator.value</code>
+    to any URL. Common operators are <code>eq</code> (equals), <code>gt</code>,
+    <code>gte</code>, <code>lt</code>, <code>lte</code>, <code>like</code>
+    (pattern match), and <code>in</code> (set membership). Sort with
+    <code>order=column.desc.nullslast</code>. Limit with <code>limit=N</code>.
+    Pick columns with <code>select=col1,col2,col3</code>. Combine with <code>&amp;</code>.
+  </p>
+  <p>Worked example — show the top 5 categories by notices received for X:</p>
+  <pre><code>?select=category_code,notices_received&provider_slug=eq.x&order=notices_received.desc.nullslast&limit=5</code></pre>
+  <p>
+    Full PostgREST query reference:
+    <a href="https://postgrest.org/en/stable/api.html">postgrest.org</a>.
+  </p>
 
-      {sections.map((section) => (
-        <section>
-          <h3>{section.title}</h3>
-          {section.intro && <p>{section.intro}</p>}
-          {section.endpoints.map((endpoint) => (
-            <div class="endpoint">
-              <p><span class="name">{endpoint.name}</span></p>
-              <p class="desc">{endpoint.description}</p>
-              <p>
-                <a class="example-link" href={apiUrl(endpoint.example)} target="_blank" rel="noopener noreferrer">/{endpoint.example} →</a>
-                {endpoint.exampleNote && <span class="note"> ({endpoint.exampleNote})</span>}
-              </p>
-            </div>
-          ))}
-        </section>
+  {sections.map((section) => (
+    <section>
+      <h3>{section.title}</h3>
+      {section.intro && <p>{section.intro}</p>}
+      {section.endpoints.map((endpoint) => (
+        <div class="endpoint">
+          <p><span class="name">{endpoint.name}</span></p>
+          <p class="desc">{endpoint.description}</p>
+          <p>
+            <a class="example-link" href={apiUrl(endpoint.example)} target="_blank" rel="noopener noreferrer">/{endpoint.example} →</a>
+            {endpoint.exampleNote && <span class="note"> ({endpoint.exampleNote})</span>}
+          </p>
+        </div>
       ))}
+    </section>
+  ))}
 
-      <h3>Total exposed surface</h3>
-      <p>
-        22 views plus 2 reference tables — 24 endpoints in total. All read-only.
-        Rate-limited at the Supabase free tier (60 requests per minute per anon
-        user), which is ok for human exploration but will not survive scripted scraping.
-      </p>
-    </main>
+  <h3>Total exposed surface</h3>
+  <p>
+    22 views plus 2 reference tables — 24 endpoints in total. All read-only.
+    Rate-limited at the Supabase free tier (60 requests per minute per anon
+    user). OK for human exploration but won't survive scripted scraping.
+  </p>
+</Layout>
 
-    <footer>
-      <p>If something returns an error or isn't structured the way you expected, please let us know.</p>
-    </footer>
-  </body>
-</html>
+<style>
+  .endpoint {
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .endpoint:last-child { border-bottom: none; }
+  .endpoint .name {
+    display: inline-block;
+    font-family: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+    font-size: 0.95rem;
+    font-weight: 600;
+    background: var(--code-bg);
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    color: var(--ink);
+  }
+  .endpoint p { margin: 0.4rem 0; }
+  .endpoint .example-link {
+    font-family: ui-monospace, monospace;
+    font-size: 0.85rem;
+    word-break: break-all;
+  }
+  .endpoint .note { color: var(--ink-faint); font-size: 0.85rem; }
+</style>
