@@ -1,0 +1,96 @@
+---
+// src/pages/about.astro
+// What this is, what it isn't, what the methodology is in plain English.
+---
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>About — RTFP</title>
+    <style>
+      :root { --bg: #fafaf9; --ink: #1c1917; --ink-dim: #57534e; --ink-faint: #78716c; --border: #e7e5e4; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; }
+      header, main, footer { max-width: 56rem; margin: 0 auto; padding: 0 1.5rem; }
+      header { padding-top: 3rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+      header h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+      header nav { margin-top: 1rem; display: flex; gap: 1.5rem; font-size: 0.9rem; color: var(--ink-dim); }
+      header nav a { color: inherit; text-decoration: none; }
+      header nav a:hover { color: var(--ink); }
+      main { padding: 3rem 1.5rem; }
+      main h2 { font-size: 2rem; letter-spacing: -0.02em; margin: 0 0 1rem; }
+      main h3 { font-size: 1.2rem; margin: 2.5rem 0 0.5rem; }
+      main p { color: var(--ink-dim); margin: 0 0 1rem; }
+      footer { padding: 2rem 1.5rem 4rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--ink-faint); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>RTFP</h1>
+      <nav>
+        <a href="/">Findings</a>
+        <a href="/sources">Sources</a>
+        <a href="/about">About</a>
+      </nav>
+    </header>
+    <main>
+      <h2>About</h2>
+      <p>
+        RTFP is a cross-platform comparison of the largest platforms'
+        EU Digital Services Act transparency reports. The site loads the
+        platforms' published filings into a normalised database and exposes
+        the comparisons no individual provider reports themselves.
+      </p>
+
+      <h3>Why now</h3>
+      <p>
+        The DSA has required VLOPs and VLOSEs to publish transparency
+        reports twice a year since August 2023. For the first two years, every
+        platform reported in its own format — comparison was nearly impossible.
+        From the H2 2025 reporting cycle (published February 2026), all VLOPs
+        must use the harmonised template defined by Commission Implementing
+        Regulation 2024/2835. This is the first time the major platforms can be
+        compared directly.
+      </p>
+
+      <h3>What's covered</h3>
+      <p>
+        Our initial trial dataset covers the H2 2025 filings of TikTok, Instagram,
+        LinkedIn, and X. The dataset will grow over time, as new reports are
+        filed - the next cycle covering H1 2026 is due in August 2026 - and any
+        amendments to past filings will be added when issued.
+      </p>
+
+      <h3>What this is not</h3>
+      <p>
+        This is not an audit. Every number on the site is what each
+        platform self-reported. Where platforms disagree on methodology — and they
+        do — we note that as a finding rather than picking a winner.
+      </p>
+      <p>
+        This site does not include data from the EU's Statements of Reasons
+        database (which is a separate dataset covering individual moderation
+        decisions). This site covers only the quantitative templates filed under Articles
+        15 and 24 of the DSA, and the qualitative narrative sections under Article 42.
+      </p>
+
+      <h3>How the numbers reconcile</h3>
+      <p>
+        Each finding on the site links to the underlying database view. Every view
+        is publicly queryable via the REST API; the URL on the home page footer
+        leads to the full reference. Every filing the site draws from is linked on
+        the Sources page so the numbers can be checked against the providers'
+        own published reports.
+      </p>
+
+      <h3>Who built this</h3>
+      <p>
+        Oscar and Sune [@]
+      </p>
+    </main>
+    <footer>
+      <p>Questions, corrections, suggestions: [contact to come].</p>
+    </footer>
+  </body>
+</html>

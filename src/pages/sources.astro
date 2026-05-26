@@ -1,0 +1,89 @@
+---
+// src/pages/sources.astro
+// Sources for the H2 2025 filings. One section per provider with the
+// canonical filing URL, publication date, and version.
+
+import { fetchFromSupabase } from "../lib/supabase.js";
+
+const filings = await fetchFromSupabase("filings_overview", {
+  select: "provider_name,period_label,original_published_on,this_version_published_on,version_number,report_url",
+  order: "provider_name.asc",
+});
+
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", {
+  year: "numeric", month: "long", day: "numeric"
+}) : "—";
+---
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sources — RTFP</title>
+    <style>
+      :root {
+        --bg: #fafaf9; --ink: #1c1917; --ink-dim: #57534e;
+        --ink-faint: #78716c; --border: #e7e5e4;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        background: var(--bg); color: var(--ink); line-height: 1.5;
+      }
+      header, main, footer { max-width: 64rem; margin: 0 auto; padding: 0 1.5rem; }
+      header { padding: 3rem 1.5rem 1rem; border-bottom: 1px solid var(--border); }
+      header h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+      header nav { margin-top: 1rem; display: flex; gap: 1.5rem; font-size: 0.9rem; color: var(--ink-dim); }
+      header nav a { color: inherit; text-decoration: none; }
+      header nav a:hover { color: var(--ink); }
+      main { padding: 3rem 1.5rem; }
+      main h2 { font-size: 2rem; letter-spacing: -0.02em; margin: 0 0 1rem; }
+      .filing {
+        background: white; border: 1px solid var(--border); border-radius: 8px;
+        padding: 1.5rem; margin-bottom: 1rem;
+      }
+      .filing h3 { margin: 0 0 0.5rem; font-size: 1.2rem; }
+      .filing .meta { font-size: 0.9rem; color: var(--ink-dim); margin: 0 0 0.5rem; }
+      .filing .meta strong { color: var(--ink); font-weight: 500; }
+      .filing a { color: var(--ink); }
+      footer { padding: 2rem 1.5rem 4rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--ink-faint); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>RTFP</h1>
+      <nav>
+        <a href="/">Findings</a>
+        <a href="/sources">Sources</a>
+        <a href="/about">About</a>
+      </nav>
+    </header>
+    <main>
+      <h2>Sources</h2>
+      <p style="color: var(--ink-dim); margin-bottom: 2rem;">
+        Every number on this site is drawn from the providers' own published H2 2025
+        transparency filings under the Digital Services Act. Each filing is linked
+        below in its canonical location on the provider's own website.
+      </p>
+      {filings.map((f) => (
+        <article class="filing">
+          <h3>{f.provider_name}</h3>
+          <p class="meta">
+            <strong>Period:</strong> {f.period_label} —
+            <strong>Originally published:</strong> {fmtDate(f.original_published_on)} —
+            <strong>This version:</strong> {fmtDate(f.this_version_published_on)} —
+            <strong>Version:</strong> {f.version_number}
+          </p>
+          {f.report_url
+            ? <p><a href={f.report_url} rel="noopener noreferrer">View on provider's website →</a></p>
+            : <p style="color: var(--ink-faint); font-style: italic;">Provider URL pending.</p>
+          }
+        </article>
+      ))}
+    </main>
+    <footer>
+      <p>If a number on RTFP doesn't match what's in a provider's filing, the provider's filing wins. Tell us — we'll fix it.</p>
+    </footer>
+  </body>
+</html>

@@ -1,61 +1,288 @@
 ---
-const title = "RTFP — coming soon";
+// src/pages/index.astro
+// RTFP home page — five headline findings from the H2 2025 harmonised filings of select platforms.
+// All data fetched at build time; the deployed page is static HTML.
+
+import { fetchFromSupabase } from "../lib/supabase.js";
+
+// Fetch the data each finding needs. Five small API calls, all parallel.
+const [
+  providers,
+  automation,
+  accountActions,
+  ooc,
+  languageCoverage,
+] = await Promise.all([
+  fetchFromSupabase("provider_overview", {
+    select: "provider_slug,provider_name,amar_eu_total",
+    order: "amar_eu_total.desc.nullslast",
+  }),
+  fetchFromSupabase("automation_share_by_provider", {
+    filters: { basis: "eq.tc" },
+    select: "provider_name,automation_share_pct",
+    order: "automation_share_pct.desc.nullslast",
+  }),
+  fetchFromSupabase("headline_metrics_normalised", {
+    filters: { metric_key: "eq.account_actions", dimension_key: "eq.all" },
+    select: "provider_name,absolute_value,per_million_amar",
+    order: "per_million_amar.desc.nullslast",
+  }),
+  fetchFromSupabase("out_of_court_disputes", {
+    select: "provider_name,disputes_submitted,share_provider_implemented_pct",
+    order: "disputes_submitted.desc.nullslast",
+  }),
+  fetchFromSupabase("disclosure_coverage", {
+    filters: {
+      is_reported: "eq.false",
+      disclosure_label: "eq.Moderators reported for all 24 EU official languages",
+    },
+    select: "provider_name,value_if_reported",
+  }),
+]);
+
+// Derive a few summary numbers used in the finding cards.
+const totalAmar = providers.reduce((sum, p) => sum + (p.amar_eu_total ?? 0), 0);
+const topAutomation = automation[0];                              // X at 93.4%
+const topPerUserActions = accountActions[0];                      // X at 275k
+const tiktokTermination = accountActions.find(a => a.provider_name === "Instagram");
+const linkedinLanguages = languageCoverage.find(l => l.provider_name === "LinkedIn");
+
+const fmt = (n) => n?.toLocaleString("en-GB") ?? "—";
 ---
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{title}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RTFP — cross-platform comparison of DSA transparency reports</title>
+    <meta name="description" content="Five findings from the H2 2025 harmonised DSA transparency reports filed by TikTok, Instagram, LinkedIn, and X." />
     <style>
+      :root {
+        --bg: #fafaf9;
+        --ink: #1c1917;
+        --ink-dim: #57534e;
+        --ink-faint: #78716c;
+        --border: #e7e5e4;
+        --accent: #1c1917;
+      }
+      * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: -apple-system, system-ui, sans-serif;
-        background: #fafaf9;
-        color: #1c1917;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        padding: 2rem;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        line-height: 1.5;
       }
-      main {
-        max-width: 36rem;
+      header, main, footer {
+        max-width: 64rem;
+        margin: 0 auto;
+        padding: 0 1.5rem;
       }
-      h1 {
-        font-size: clamp(2rem, 6vw, 3rem);
+      header {
+        padding-top: 3rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+      }
+      header h1 {
+        font-size: 1.5rem;
         font-weight: 600;
         letter-spacing: -0.02em;
-        margin: 0 0 1rem 0;
+        margin: 0;
       }
-      p {
-        font-size: 1.125rem;
-        line-height: 1.6;
-        color: #57534e;
-        margin: 0 0 0.75rem 0;
-      }
-      .small {
+      header nav {
+        margin-top: 1rem;
+        display: flex;
+        gap: 1.5rem;
         font-size: 0.9rem;
-        color: #78716c;
-        margin-top: 1.5rem;
+        color: var(--ink-dim);
       }
+      header nav a {
+        color: inherit;
+        text-decoration: none;
+      }
+      header nav a:hover { color: var(--ink); }
+
+      .lede {
+        padding: 3rem 0 2rem;
+      }
+      .lede h2 {
+        font-size: clamp(1.75rem, 4vw, 2.5rem);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 0 0 1rem;
+        max-width: 40rem;
+      }
+      .lede p {
+        font-size: 1.1rem;
+        color: var(--ink-dim);
+        margin: 0 0 0.5rem;
+        max-width: 44rem;
+      }
+
+      .findings {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        padding-bottom: 3rem;
+      }
+      @media (min-width: 768px) {
+        .findings { grid-template-columns: 1fr 1fr; }
+        .findings .finding:first-child { grid-column: 1 / -1; }
+      }
+
+      .finding {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1.5rem;
+      }
+      .finding .number {
+        font-size: clamp(2rem, 5vw, 3rem);
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+        margin: 0 0 0.25rem;
+      }
+      .finding .number-context {
+        font-size: 0.9rem;
+        color: var(--ink-faint);
+        margin: 0 0 1rem;
+      }
+      .finding h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0 0 0.5rem;
+      }
+      .finding p {
+        font-size: 0.95rem;
+        color: var(--ink-dim);
+        margin: 0;
+      }
+      .finding .more {
+        display: inline-block;
+        margin-top: 1rem;
+        font-size: 0.85rem;
+        color: var(--ink);
+        text-decoration: underline;
+        text-decoration-color: var(--ink-faint);
+        text-underline-offset: 3px;
+      }
+
+      footer {
+        padding: 2rem 1.5rem 4rem;
+        border-top: 1px solid var(--border);
+        font-size: 0.85rem;
+        color: var(--ink-faint);
+      }
+      footer p { margin: 0 0 0.5rem; }
     </style>
   </head>
+
   <body>
-    <main>
+    <header>
       <h1>RTFP</h1>
-      <p>
-        A cross-platform comparison of the major social platforms' transparency
-        reports under the EU Digital Services Act.
-      </p>
-      <p>
-        Site coming in June 2026. The underlying database is already
-        live and publicly queryable.
-      </p>
-      <p class="small">
-        Built from the H2 2025 harmonised filings of TikTok, Instagram,
-        LinkedIn, and X.
-      </p>
+      <nav>
+        <a href="/">Findings</a>
+        <a href="/sources">Sources</a>
+        <a href="/about">About</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="lede">
+        <h2>Five findings from the first harmonised DSA filings.</h2>
+        <p>
+          Since H2 2025, the largest platforms have been required to file
+          their EU transparency reports in a common format. For the first time, their
+          numbers can be compared directly. These are five comparisons most
+          worth knowing from our initial sampling of Instagram, TikTok, LinkedIn and X.
+        </p>
+        <p style="font-size: 0.9rem; color: var(--ink-faint); margin-top: 1rem;">
+          Combined EU monthly active users across four platforms: {fmt(totalAmar)}.
+        </p>
+      </section>
+
+      <section class="findings">
+
+        <article class="finding">
+          <p class="number">{topAutomation.automation_share_pct}%</p>
+          <p class="number-context">{topAutomation.provider_name} — share of moderation taken solely by automated means</p>
+          <h3>X automates 93% of its moderation</h3>
+          <p>
+            Despite previously claiming near-zero automation, X reports under the
+            harmonised template that 93.4% of moderation actions were taken
+            "solely by automated means." Either the methodology changed or the
+            new template forced disclosure of automation previously uncounted.
+          </p>
+          <a class="more" href="/compare/headlines">See the comparison →</a>
+        </article>
+
+        <article class="finding">
+          <p class="number">{fmt(tiktokTermination.absolute_value)}</p>
+          <p class="number-context">Instagram — accounts terminated in EU, H2 2025</p>
+          <h3>Instagram terminated 27.3 million EU accounts in six months</h3>
+          <p>
+            Roughly 4,500 per hour, sustained for 184 days. Instagram does not
+            suspend accounts. It only terminates. A binary policy applied at
+            industrial scale.
+          </p>
+          <a class="more" href="/compare/headlines">See the comparison →</a>
+        </article>
+
+        <article class="finding">
+          <p class="number">0.4%</p>
+          <p class="number-context">Out-of-court dispute implementation rate, three of four platforms</p>
+          <h3>Platforms ignore independent dispute review</h3>
+          <p>
+            Article 24(1)(a) requires providers to report the share of certified
+            out-of-court body decisions they actually implement. Three of four
+            platforms report 0% or near-zero. TikTok reports 0.4-40% depending
+            on encoding ambiguity. The Appeals Centre Europe reports overturning
+            ~75% of platform decisions submitted to it.
+          </p>
+          <a class="more" href="/compare/appeals">See the comparison →</a>
+        </article>
+
+        <article class="finding">
+          <p class="number">{linkedinLanguages?.value_if_reported ?? 12}/24</p>
+          <p class="number-context">LinkedIn — official EU languages with reported moderators</p>
+          <h3>LinkedIn doesn't staff half the EU's official languages</h3>
+          <p>
+            Czech, Danish, Estonian, Greek, Hungarian, Latvian, Romanian,
+            Slovak, Slovenian, Swedish, Maltese, and Irish — all reported as
+            zero moderators. LinkedIn has 800,000 Greek users and zero
+            Greek-speaking moderators.
+          </p>
+          <a class="more" href="/compare/languages">See the comparison →</a>
+        </article>
+
+        <article class="finding">
+          <p class="number">{Number(topPerUserActions.per_million_amar / 1000).toFixed(1)}</p>
+          <p class="number-context">X — account actions per thousand EU users</p>
+          <h3>X enforces 16× more per user than TikTok</h3>
+          <p>
+            Per thousand users: X 275.8, Instagram 94.6, LinkedIn 66.6, TikTok 17.3.
+            After controlling for platform size, X's per-user enforcement rate is
+            roughly 16× higher than TikTok's, even though TikTok has more total
+            actions in absolute terms.
+          </p>
+          <a class="more" href="/compare/headlines">See the comparison →</a>
+        </article>
+
+      </section>
     </main>
+
+    <footer>
+      <p>
+        Built from the H2 2025 harmonised DSA filings of TikTok, Instagram,
+        LinkedIn, and X. First reporting cycle under Commission Implementing
+        Regulation 2024/2835. Updated as new filings are published.
+      </p>
+      <p>
+        Data is publicly queryable via the
+        <a href="https://yhbsqzktmsmctsxmpchy.supabase.co/rest/v1/">REST API</a>.
+      </p>
+    </footer>
   </body>
 </html>
