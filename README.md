@@ -26,5 +26,4 @@ Work in progress. The database is live. The site is being built page by page thr
 
 ## Contact
 
-Oscar
-Open an issue at https://github.com/pushkinoxt/rtfp/issues
+Oscar - open an issue at https://github.com/pushkinoxt/rtfp/issues
