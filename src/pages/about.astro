@@ -1,6 +1,39 @@
 ---
 // src/pages/about.astro
 import Layout from "../layouts/Layout.astro";
+import { fetchFromSupabase } from "../lib/supabase.js";
+
+const providers = await fetchFromSupabase("provider_overview", {
+  select: "provider_slug,provider_name",
+  order: "provider_name.asc",
+});
+
+// De-duplicate (provider_overview is one row per filing).
+const seen = new Set();
+const unique = [];
+for (const p of providers) {
+  if (seen.has(p.provider_slug)) continue;
+  seen.add(p.provider_slug);
+  unique.push(p);
+}
+
+const MARKETPLACE_SLUGS = new Set([
+  "amazon-store", "zalando", "aliexpress", "shein", "temu",
+]);
+const marketplaces = unique.filter(p => MARKETPLACE_SLUGS.has(p.provider_slug));
+const social = unique.filter(p => !MARKETPLACE_SLUGS.has(p.provider_slug));
+
+const providerCount = unique.length;
+
+// "A, B and C" from a list of names.
+function nameList(items) {
+  const names = items.map(p => p.provider_name);
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+const socialNames = nameList(social);
+const marketplaceNames = nameList(marketplaces);
 ---
 
 <Layout title="About — RTFP" description="What RTFP is, what it isn't, and how the numbers reconcile against the providers' own filings.">
@@ -8,7 +41,7 @@ import Layout from "../layouts/Layout.astro";
   <p>
     RTFP is a cross-platform comparison of the largest platforms'
     EU Digital Services Act transparency reports. We load the
-    platforms' published filings into a normalised database and exposes
+    platforms' published filings into a normalised database and expose
     the comparisons that no individual provider reports themselves.
   </p>
 
@@ -25,17 +58,33 @@ import Layout from "../layouts/Layout.astro";
 
   <h3>What's covered</h3>
   <p>
-    The initial dataset covers the H2 2025 filings of TikTok, Instagram,
-    LinkedIn, and X. The dataset will grow over time as new reports are
-    filed: the next cycle covering H1 2026 is due in August 2026, and any
-    amendments to past filings will be added when issued.
+    The dataset currently covers the H2 2025 filings of {providerCount}
+    platforms{social.length > 0 && marketplaces.length > 0 ? ", across two groups" : ""}.
+  </p>
+  {social.length > 0 && (
+    <p>
+      <strong>Social platforms:</strong> {socialNames}.
+    </p>
+  )}
+  {marketplaces.length > 0 && (
+    <p>
+      <strong>Marketplaces:</strong> {marketplaceNames}.
+    </p>
+  )}
+  <p>
+    The dataset will grow over time as new reports are filed.  This is currently in a trial phase, and we 
+    continue to work on growing the dataset to include the filings of all the 
+    largest platforms. Also, the next reporting cycle covering H1 2026 is due in 
+    August 2026, and any amendments to past filings will also be added as soon as we can.
+    Please note that the "social platforms" and "marketplaces" terminology are our own, 
+    based on general usage.
   </p>
 
   <h3>What this is not</h3>
   <p>
     This is not an audit. Every number on the site is what each
-    platform self-reported. Where platforms disagree on methodology - and they
-    do - that's surfaced as a finding only. Remember, garbage in, garbage out.
+    platform self-reported. Where platforms disagree on methodology — and they
+    do — that's surfaced as a finding only. Remember, garbage in, garbage out.
   </p>
   <p>
     This site does not include data from the EU's Statements of Reasons
@@ -54,6 +103,6 @@ import Layout from "../layouts/Layout.astro";
 
   <h3>Who built this</h3>
   <p>
-    RTFP is built by Oscar <a href="https://github.com/pushkinoxt">@pushkinoxt</a> and Sune (at).
+    RTFP is built by Oscar (<a href="https://github.com/pushkinoxt">@pushkinoxt</a>) and Sune (at).
   </p>
 </Layout>
