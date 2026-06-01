@@ -33,68 +33,123 @@ const [providers, automation, accountActions, ooc, languageCoverage] = await Pro
   }),
 ]);
 
+const providerCount = providers.length;
 const totalAmar = providers.reduce((sum, p) => sum + (p.amar_eu_total ?? 0), 0);
-const topAutomation = automation[0];
-const topPerUserActions = accountActions[0];
+
+// Findings that name a specific provider use .find() so they stay correct
+// regardless of how many providers are loaded.
+const xAutomation = automation.find(a => a.provider_name === "X");
+const sheinAutomation = automation.find(a => a.provider_name === "Shein");
+const pinterestAutomation = automation.find(a => a.provider_name === "Pinterest");
 const instaTermination = accountActions.find(a => a.provider_name === "Instagram");
+const xPerUser = accountActions.find(a => a.provider_name === "X");
+const tiktokPerUser = accountActions.find(a => a.provider_name === "TikTok");
 const linkedinLanguages = languageCoverage.find(l => l.provider_name === "LinkedIn");
+const temuProvider = providers.find(p => p.provider_name === "Temu");
+const temuReportsNoAmar = temuProvider ? (temuProvider.amar_eu_total == null) : false;
 
 const fmt = (n) => n?.toLocaleString("en-GB") ?? "—";
+
+// X-vs-TikTok per-user multiple, computed rather than hardcoded.
+const xVsTiktokMultiple =
+  xPerUser && tiktokPerUser && tiktokPerUser.per_million_amar
+    ? (xPerUser.per_million_amar / tiktokPerUser.per_million_amar)
+    : null;
+
+// --- Point-in-time figures (H2 2025 v1 data) ---
+// These come from views whose column names aren't yet wired into this page.
+// They are accurate for the current data cycle. To make them live, replace
+// with fetches from moderation_volume_comparison and government_orders_summary
+// once their column names are confirmed.
+const temuTotalMeasures = 768352129;     // Temu, own-initiative ToS, TOTAL
+const socialTotalMeasures = 706911338;   // Sum of the 7 social platforms
+const amazonGovOrders = 947;             // Amazon Store, orders to act
+const facebookGovOrders = 1358;          // Facebook, orders to act (the max)
 
 const title = "RTFP — Reading The Fine Print";
 const description = "A cross-platform comparison of the EU Digital Services Act transparency filings of the largest platforms out there";
 ---
 
 <Layout title={title} description={description}>
-  <h2>Headling findings from the first harmonised DSA filings</h2>
+  <h2>Headline findings from the first harmonised DSA filings</h2>
   <p>
     Since H2 2025, the largest platforms have been required to file their EU
     transparency reports in a common format. For the first time, their numbers
-    can be compared directly. These are five comparisons worth knowing from
-    our initial sampling of Instagram, TikTok, LinkedIn and X.
+    can be compared directly. These are some comparisons worth knowing from
+    the harmonised filings of the largest social platforms and marketplaces.
   </p>
   <p class="amar-footnote">
-    Combined EU monthly active users across the four platforms: {fmt(totalAmar)}.
+    Coverage: {providerCount} platforms. Combined EU average monthly active
+    recipients across them: {fmt(totalAmar)}.
   </p>
 
   <section class="findings">
     <article class="finding hero">
-      <p class="number">{topAutomation.automation_share_pct}%</p>
-      <p class="number-context">{topAutomation.provider_name} — share of moderation taken solely by automated means</p>
-      <h3>X automates 93% of its moderation</h3>
+      <p class="number">{Math.round(temuTotalMeasures / 1e6)}M</p>
+      <p class="number-context">Temu — own-initiative moderation actions, H2 2025</p>
+      <h3>One marketplace out-moderated every social platform combined</h3>
       <p>
-        Despite previously claiming near-zero automation, X reports under the
-        harmonised template that 93.4% of moderation actions were taken
-        "solely by automated means." Either the methodology changed or the
-        new template forced disclosure of automation previously uncounted.
+        Temu reported {fmt(temuTotalMeasures)} content moderation actions taken
+        on its own initiative under its terms and conditions — more than the
+        seven social platforms in this dataset added together
+        (about {fmt(socialTotalMeasures)}). The platform most associated with
+        consumer goods reported more moderation activity than TikTok,
+        Facebook, Instagram, X, Snapchat, Pinterest and LinkedIn put together.
       </p>
       <a class="more" href="/compare/headlines">See the comparison →</a>
     </article>
 
     <article class="finding">
-      <p class="number">{fmt(instaTermination.absolute_value)}</p>
+      <p class="number">{sheinAutomation?.automation_share_pct ?? 0}%</p>
+      <p class="number-context">Shein — share of moderation taken solely by automated means</p>
+      <h3>Social platforms automate heavily - marketplaces don't agree</h3>
+      <p>
+        All seven social platforms report automating between roughly 78% and
+        99% of their terms-and-conditions moderation
+        (X {xAutomation?.automation_share_pct ?? "—"}%,
+        Pinterest {pinterestAutomation?.automation_share_pct ?? "—"}%).
+        Marketplaces scatter from 0% to 97%. The three least-automated
+        moderators of all {providerCount} are marketplaces.
+      </p>
+      <a class="more" href="/compare/headlines">See the comparison →</a>
+    </article>
+
+    <article class="finding">
+      <p class="number">{fmt(amazonGovOrders)}</p>
+      <p class="number-context">Amazon Store — government orders to act against illegal content</p>
+      <h3>A shopping platform fields the second-most government takedown orders</h3>
+      <p>
+        Government orders to remove illegal content are usually imagined as a
+        social-media matter. Yet Amazon Store received {fmt(amazonGovOrders)}
+        such orders from EU member state authorities in H2 2025 — second only
+        to Facebook ({fmt(facebookGovOrders)}), and ahead of TikTok, Instagram
+        and every other platform in the dataset.
+      </p>
+      <a class="more" href="/compare/government-orders">See the comparison →</a>
+    </article>
+
+    <article class="finding">
+      <p class="number">{temuReportsNoAmar ? "n/a" : fmt(temuProvider?.amar_eu_total)}</p>
+      <p class="number-context">Temu — average monthly active recipients reported</p>
+      <h3>The largest moderator doesn't disclose how large it is</h3>
+      <p>
+        Temu reported the most moderation activity of any platform here, but
+        left its average-monthly-active-recipients figure blank in the filing. Without a user
+        base, its moderation cannot be expressed per user — the measure that
+        makes platforms of different sizes comparable. 
+      </p>
+      <a class="more" href="/sources">See the sources →</a>
+    </article>
+
+    <article class="finding">
+      <p class="number">{fmt(instaTermination?.absolute_value)}</p>
       <p class="number-context">Instagram — accounts terminated in EU, H2 2025</p>
-      <h3>Instagram terminated 27.3 million EU accounts in six months</h3>
+      <h3>Instagram terminated tens of millions of EU accounts in six months</h3>
       <p>
-        Roughly 4,500 per hour, sustained for 184 days. Instagram does not
-        suspend accounts - it only terminates. A binary policy applied at
-        industrial scale.
+        Sustained across 184 days. Instagram does not suspend accounts — it
+        only terminates. A binary policy applied at industrial scale.
       </p>
       <a class="more" href="/compare/headlines">See the comparison →</a>
-    </article>
-
-    <article class="finding">
-      <p class="number">0.4%</p>
-      <p class="number-context">Out-of-court dispute implementation rate, three of four platforms</p>
-      <h3>Platforms ignore independent dispute review</h3>
-      <p>
-        Article 24(1)(a) requires providers to report the share of certified
-        out-of-court body decisions they actually implement. Three of four
-        platforms report 0% or near-zero. TikTok reports 0.4–40% depending
-        on encoding ambiguity. The Appeals Centre Europe reports overturning
-        roughly 75% of platform decisions submitted to it.
-      </p>
-      <a class="more" href="/compare/appeals">See the comparison →</a>
     </article>
 
     <article class="finding">
@@ -104,21 +159,41 @@ const description = "A cross-platform comparison of the EU Digital Services Act 
       <p>
         Czech, Danish, Estonian, Greek, Hungarian, Latvian, Romanian, Slovak,
         Slovenian, Swedish, Maltese, and Irish — all reported as zero
-        moderators. LinkedIn has 800,000 Greek users and zero Greek-speaking
-        moderators.
+        moderators. LinkedIn has hundreds of thousands of Greek users and
+        zero Greek-speaking moderators.
       </p>
       <a class="more" href="/compare/languages">See the comparison →</a>
     </article>
 
     <article class="finding">
-      <p class="number">{Number(topPerUserActions.per_million_amar / 1000).toFixed(1)}</p>
-      <p class="number-context">X — account actions per thousand EU users</p>
-      <h3>X enforces 16× more per user than TikTok</h3>
+      <p class="number">~0%</p>
+      <p class="number-context">Out-of-court dispute implementation rate, several platforms</p>
+      <h3>Platforms rarely implement independent dispute review</h3>
       <p>
-        Per thousand users: X 275.8, Instagram 94.6, LinkedIn 66.6, TikTok 17.3.
+        Article 21 lets users escalate moderation decisions to certified
+        out-of-court dispute bodies. Across the filings, several platforms
+        report implementing none or almost none of those bodies' decisions.
+        The reported figures range from zero to a few percent, with encoding
+        ambiguity making some hard to interpret.
+      </p>
+      <a class="more" href="/compare/appeals">See the comparison →</a>
+    </article>
+
+    <article class="finding">
+      <p class="number">
+        {xPerUser ? Number(xPerUser.per_million_amar / 1000).toFixed(1) : "—"}
+      </p>
+      <p class="number-context">X — account actions per thousand EU users</p>
+      <h3>
+        X enforces far more per user than TikTok{
+          xVsTiktokMultiple ? ` — about ${xVsTiktokMultiple.toFixed(0)}×` : ""
+        }
+      </h3>
+      <p>
         After controlling for platform size, X's per-user enforcement rate is
-        roughly 16× higher than TikTok's, even though TikTok has more total
-        actions in absolute terms.
+        many times higher than TikTok's, even where TikTok reports more actions
+        in absolute terms. Per-user rates expose differences that raw totals
+        hide.
       </p>
       <a class="more" href="/compare/headlines">See the comparison →</a>
     </article>
