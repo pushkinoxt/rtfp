@@ -1,0 +1,91 @@
+---
+// src/pages/data/index.astro
+// Landing page for the per-provider data pages. Lists every provider,
+// grouped by type, linking to /data/<slug>.
+
+import Layout from "../../layouts/Layout.astro";
+import { fetchFromSupabase } from "../../lib/supabase.js";
+
+const providers = await fetchFromSupabase("provider_overview", {
+  select: "provider_slug,provider_name,service_category,amar_eu_total",
+  order: "provider_name.asc",
+});
+
+// De-duplicate (provider_overview is one row per filing) and attach type.
+const seen = new Set();
+const unique = [];
+for (const p of providers) {
+  if (seen.has(p.provider_slug)) continue;
+  seen.add(p.provider_slug);
+  unique.push(p);
+}
+
+// Split social vs marketplace. We don't have provider_type in this view, so
+// classify by the known marketplace slugs; everything else is social.
+const MARKETPLACE_SLUGS = new Set([
+  "amazon-store", "zalando", "aliexpress", "shein", "temu",
+]);
+const marketplaces = unique.filter(p => MARKETPLACE_SLUGS.has(p.provider_slug));
+const social = unique.filter(p => !MARKETPLACE_SLUGS.has(p.provider_slug));
+
+const fmt = (n) => n == null ? "—" : Number(n).toLocaleString("en-GB");
+---
+
+<Layout title="Platforms — RTFP" description="Browse the full H2 2025 DSA transparency data for each of the platforms RTFP covers.">
+  <h2>Platforms</h2>
+  <p>
+    The full set of figures RTFP holds for each platform's H2 2025 transparency
+    filing. Select a platform to see its government orders, notices,
+    own-initiative moderation, account actions and reporting metadata.
+  </p>
+
+  <h3>Social platforms</h3>
+  <ul class="provider-list">
+    {social.map(p => (
+      <li>
+        <a href={`/data/${p.provider_slug}`}>
+          <span class="name">{p.provider_name}</span>
+          <span class="amar">{fmt(p.amar_eu_total)} EU users</span>
+        </a>
+      </li>
+    ))}
+  </ul>
+
+  <h3>Marketplaces</h3>
+  <ul class="provider-list">
+    {marketplaces.map(p => (
+      <li>
+        <a href={`/data/${p.provider_slug}`}>
+          <span class="name">{p.provider_name}</span>
+          <span class="amar">{fmt(p.amar_eu_total)} EU users</span>
+        </a>
+      </li>
+    ))}
+  </ul>
+</Layout>
+
+<style>
+  .provider-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+  @media (max-width: 600px) { .provider-list { grid-template-columns: 1fr; } }
+  .provider-list a {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85rem 1.1rem;
+    text-decoration: none;
+  }
+  .provider-list a:hover { border-color: var(--ink-faint); }
+  .provider-list .name { font-weight: 600; color: var(--ink); }
+  .provider-list .amar { font-size: 0.8rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+</style>

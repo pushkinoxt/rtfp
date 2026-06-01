@@ -1,0 +1,305 @@
+---
+// src/pages/data/[provider].astro
+//
+// Per-provider "data dump" page. One template generates all twelve pages at
+// build time via getStaticPaths(). URL: /data/<provider-slug>.
+//
+// Each page shows everything RTFP holds for one provider's H2 2025 filing:
+// header metadata, government orders, notices, own-initiative moderation,
+// appeals/disputes, and human-resource figures, with small inline SVG charts
+// for the category breakdowns.
+
+import Layout from "../../layouts/Layout.astro";
+import { fetchFromSupabase } from "../../lib/supabase.js";
+
+export async function getStaticPaths() {
+  // Generate one page per provider present in provider_overview.
+  const providers = await fetchFromSupabase("provider_overview", {
+    select: "provider_slug",
+  });
+  // De-duplicate slugs (provider_overview is one row per filing).
+  const slugs = [...new Set(providers.map(p => p.provider_slug))];
+  return slugs.map(slug => ({ params: { provider: slug } }));
+}
+
+const { provider } = Astro.params;
+const eqProvider = `eq.${provider}`;
+
+// Fetch everything for this one provider in parallel.
+const [
+  filingRows,
+  overviewRows,
+  govByCategory,
+  noticesByCategory,
+  moderationVolume,
+  automationRows,
+  accountActionsRows,
+] = await Promise.all([
+  fetchFromSupabase("filings_overview", { filters: { provider_slug: eqProvider } }),
+  fetchFromSupabase("provider_overview", { filters: { provider_slug: eqProvider } }),
+  fetchFromSupabase("government_orders_by_category", {
+    filters: { provider_slug: eqProvider },
+    order: "orders_act_received.desc.nullslast",
+  }),
+  fetchFromSupabase("notices_by_category", {
+    filters: { provider_slug: eqProvider },
+    order: "notices_received.desc.nullslast",
+  }),
+  fetchFromSupabase("moderation_volume_comparison", {
+    filters: { provider_slug: eqProvider },
+  }),
+  fetchFromSupabase("automation_share_by_provider", {
+    filters: { provider_slug: eqProvider },
+  }),
+  fetchFromSupabase("account_actions_summary", {
+    filters: { provider_slug: eqProvider },
+  }),
+]);
+
+const filing = filingRows[0] ?? {};
+const overview = overviewRows[0] ?? {};
+
+const providerName = overview.provider_name ?? filing.provider_name ?? provider;
+const legalEntity = overview.legal_entity ?? filing.legal_entity ?? "—";
+
+const fmt = (n) =>
+  n === null || n === undefined ? "—" : Number(n).toLocaleString("en-GB");
+
+const fmtDate = (d) =>
+  d ? new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" }) : "—";
+
+// Amazon-only restatement note (Amazon's loaded figures are pre-restatement).
+const isAmazonStore = provider === "amazon-store";
+
+// --- Helpers for the small inline SVG bar charts ---
+// Each chart takes [{label, value}] and renders a horizontal bar chart.
+function topRows(rows, valueKey, n = 8) {
+  return rows
+    .filter(r => (r[valueKey] ?? 0) > 0)
+    .slice(0, n)
+    .map(r => ({
+      label: r.category_label ?? r.category_code ?? "—",
+      value: Number(r[valueKey] ?? 0),
+    }));
+}
+
+const govChart = topRows(govByCategory, "orders_act_received");
+const noticesChart = topRows(noticesByCategory, "notices_received");
+
+// Own-initiative ToS TOTAL row (the big moderation headline).
+const tcTotal = moderationVolume.find(r => r.basis === "tc" && r.level === "total");
+const illegalTotal = moderationVolume.find(r => r.basis === "illegal" && r.level === "total");
+const tcAutomation = automationRows.find(r => r.basis === "tc");
+
+// Restriction-type breakdown from the ToS TOTAL row.
+const restrictionRows = tcTotal
+  ? [
+      { label: "Visibility — removal", value: tcTotal.vis_removal },
+      { label: "Visibility — disable", value: tcTotal.vis_disable },
+      { label: "Visibility — demoted", value: tcTotal.vis_demoted },
+      { label: "Visibility — age-restricted", value: tcTotal.vis_age_restricted },
+      { label: "Visibility — interaction-restricted", value: tcTotal.vis_interaction_restricted },
+      { label: "Visibility — labelled", value: tcTotal.vis_labelled },
+      { label: "Monetary — suspension", value: tcTotal.mon_suspension },
+      { label: "Monetary — termination", value: tcTotal.mon_termination },
+      { label: "Service — suspension", value: tcTotal.svc_suspension },
+      { label: "Service — termination", value: tcTotal.svc_termination },
+      { label: "Account — suspension", value: tcTotal.acc_suspension },
+      { label: "Account — termination", value: tcTotal.acc_termination },
+    ].filter(r => (r.value ?? 0) > 0)
+  : [];
+
+const accountActions = accountActionsRows.find(r => r.basis === "tc")
+  ?? accountActionsRows.find(r => r.basis === "illegal")
+  ?? {};
+
+const title = `${providerName} — DSA transparency data | RTFP`;
+const description = `Everything RTFP holds from ${providerName}'s H2 2025 EU Digital Services Act transparency filing.`;
+
+// Max value for chart scaling
+function chartMax(rows) {
+  return Math.max(1, ...rows.map(r => r.value));
+}
+---
+
+<Layout title={title} description={description}>
+  <p class="breadcrumb"><a href="/sources">← All filings</a></p>
+
+  <h2>{providerName}</h2>
+  <p class="entity">{legalEntity}</p>
+
+  <dl class="meta">
+    <div><dt>Reporting period</dt><dd>{fmtDate(filing.period_start)} – {fmtDate(filing.period_end)}</dd></div>
+    <div><dt>Published</dt><dd>{fmtDate(filing.this_version_published_on)}</dd></div>
+    <div><dt>EU average monthly active recipients</dt><dd>{fmt(overview.amar_eu_total)}</dd></div>
+    <div><dt>Service category</dt><dd>{overview.service_category ?? "—"}</dd></div>
+    <div><dt>Designated</dt><dd>{fmtDate(overview.designated_on)}</dd></div>
+    <div><dt>Established in</dt><dd>{overview.country_of_establishment ?? "—"}</dd></div>
+  </dl>
+
+  {isAmazonStore && (
+    <p class="restatement-note">
+      Note: the figures below are Amazon Store's H2 2025 report as originally
+      filed in February 2026. Amazon published restated figures in April 2026
+      that are substantially higher. A cross-version comparison is planned.
+    </p>
+  )}
+
+  <!-- Government orders -->
+  <section class="data-section">
+    <h3>Government orders to act against illegal content</h3>
+    <p class="article-ref">Article 15(1)(a)</p>
+    {govChart.length > 0 ? (
+      <div class="bar-chart">
+        {govChart.map(row => (
+          <div class="bar-row">
+            <span class="bar-label">{row.label}</span>
+            <span class="bar-track">
+              <span class="bar-fill" style={`width: ${(row.value / chartMax(govChart) * 100).toFixed(1)}%`}></span>
+            </span>
+            <span class="bar-value">{fmt(row.value)}</span>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <p class="empty">No government orders reported, or all categories reported zero.</p>
+    )}
+  </section>
+
+  <!-- Notices -->
+  <section class="data-section">
+    <h3>Notices received from users and flaggers</h3>
+    <p class="article-ref">Article 16</p>
+    {noticesChart.length > 0 ? (
+      <div class="bar-chart">
+        {noticesChart.map(row => (
+          <div class="bar-row">
+            <span class="bar-label">{row.label}</span>
+            <span class="bar-track">
+              <span class="bar-fill" style={`width: ${(row.value / chartMax(noticesChart) * 100).toFixed(1)}%`}></span>
+            </span>
+            <span class="bar-value">{fmt(row.value)}</span>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <p class="empty">No notices reported by category.</p>
+    )}
+  </section>
+
+  <!-- Own-initiative moderation -->
+  <section class="data-section">
+    <h3>Own-initiative moderation</h3>
+    <p class="article-ref">Article 15(1)(c) and (d)</p>
+
+    <div class="stat-grid">
+      <div class="stat">
+        <span class="stat-number">{fmt(tcTotal?.measures_total)}</span>
+        <span class="stat-label">Actions under terms &amp; conditions</span>
+      </div>
+      <div class="stat">
+        <span class="stat-number">{fmt(illegalTotal?.measures_total)}</span>
+        <span class="stat-label">Actions against illegal content</span>
+      </div>
+      <div class="stat">
+        <span class="stat-number">{tcAutomation?.automation_share_pct != null ? `${tcAutomation.automation_share_pct}%` : "—"}</span>
+        <span class="stat-label">Share taken solely by automated means (ToS)</span>
+      </div>
+    </div>
+
+    {restrictionRows.length > 0 && (
+      <>
+        <h4>Restriction types applied (terms &amp; conditions)</h4>
+        <div class="bar-chart">
+          {restrictionRows
+            .sort((a, b) => b.value - a.value)
+            .map(row => (
+              <div class="bar-row">
+                <span class="bar-label">{row.label}</span>
+                <span class="bar-track">
+                  <span class="bar-fill" style={`width: ${(row.value / chartMax(restrictionRows) * 100).toFixed(1)}%`}></span>
+                </span>
+                <span class="bar-value">{fmt(row.value)}</span>
+              </div>
+            ))}
+        </div>
+      </>
+    )}
+  </section>
+
+  <!-- Account actions -->
+  <section class="data-section">
+    <h3>Account-level actions</h3>
+    <p class="article-ref">Article 15(1)(d)</p>
+    <table class="data-table">
+      <tbody>
+        <tr><th>Account suspensions</th><td>{fmt(accountActions.account_suspensions)}</td></tr>
+        <tr><th>Account terminations</th><td>{fmt(accountActions.account_terminations)}</td></tr>
+        <tr><th>Total account actions</th><td>{fmt(accountActions.total_account_actions)}</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Footer / raw data -->
+  <section class="data-section">
+    <h3>Raw data</h3>
+    <p>
+      Every figure on this page comes from {providerName}'s filing as loaded into
+      RTFP's public database. You can query the underlying data directly via the
+      <a href="/api">public API</a>. The original filing is linked from the
+      <a href="/sources">sources page</a>.
+    </p>
+  </section>
+</Layout>
+
+<style>
+  .breadcrumb { font-size: 0.85rem; margin-bottom: 1rem; }
+  .entity { color: var(--ink-faint); margin-top: -0.5rem; margin-bottom: 1.5rem; }
+
+  .meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 2rem;
+    margin: 0 0 2rem;
+    padding: 1rem 1.25rem;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  @media (max-width: 600px) { .meta { grid-template-columns: 1fr; } }
+  .meta div { margin: 0; }
+  .meta dt { font-size: 0.8rem; color: var(--ink-faint); margin: 0; }
+  .meta dd { margin: 0; font-weight: 600; }
+
+  .restatement-note {
+    font-size: 0.9rem;
+    background: #fef9e7;
+    border: 1px solid #f0e0a0;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .data-section { margin: 2.5rem 0; }
+  .data-section h3 { margin-bottom: 0.1rem; }
+  .article-ref { font-size: 0.8rem; color: var(--ink-faint); margin: 0 0 1rem; }
+  .data-section h4 { font-size: 0.95rem; margin: 1.5rem 0 0.75rem; }
+  .empty { color: var(--ink-faint); font-style: italic; }
+
+  .bar-chart { display: flex; flex-direction: column; gap: 0.4rem; }
+  .bar-row { display: grid; grid-template-columns: 12rem 1fr auto; align-items: center; gap: 0.75rem; font-size: 0.85rem; }
+  @media (max-width: 600px) { .bar-row { grid-template-columns: 8rem 1fr auto; } }
+  .bar-label { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { background: #f0efed; border-radius: 3px; height: 1.1rem; overflow: hidden; }
+  .bar-fill { display: block; height: 100%; background: var(--ink); border-radius: 3px; min-width: 2px; }
+  .bar-value { font-variant-numeric: tabular-nums; color: var(--ink-faint); }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1rem 0; }
+  .stat { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+  .stat-number { display: block; font-size: 1.6rem; font-weight: 600; letter-spacing: -0.02em; }
+  .stat-label { display: block; font-size: 0.8rem; color: var(--ink-faint); margin-top: 0.25rem; }
+
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  .data-table th { text-align: left; font-weight: 500; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+  .data-table td { text-align: right; font-variant-numeric: tabular-nums; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+</style>

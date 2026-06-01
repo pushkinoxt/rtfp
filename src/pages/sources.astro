@@ -4,7 +4,7 @@ import Layout from "../layouts/Layout.astro";
 import { fetchFromSupabase } from "../lib/supabase.js";
 
 const filings = await fetchFromSupabase("filings_overview", {
-  select: "provider_name,period_label,original_published_on,this_version_published_on,version_number,report_url",
+  select: "provider_slug,provider_name,period_label,original_published_on,this_version_published_on,version_number,report_url",
   order: "provider_name.asc",
 });
 
@@ -30,10 +30,12 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", {
         <strong>This version:</strong> {fmtDate(f.this_version_published_on)} —
         <strong>Version:</strong> {f.version_number}
       </p>
-      {f.report_url
-        ? <p><a href={f.report_url} rel="noopener noreferrer">View on provider's website →</a></p>
-        : <p class="pending">Provider URL pending.</p>
-      }
+      <p class="links">
+        <a href={`/data/${f.provider_slug}`}>View RTFP data →</a>
+        {f.report_url && (
+          <a href={f.report_url} rel="noopener noreferrer">Provider's original filing →</a>
+        )}
+      </p>
     </article>
   ))}
 
@@ -54,4 +56,5 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", {
   .filing .meta { font-size: 0.9rem; margin: 0 0 0.5rem; }
   .filing .meta strong { color: var(--ink); font-weight: 500; }
   .filing .pending { color: var(--ink-faint); font-style: italic; }
+  .filing .links { display: flex; gap: 1.5rem; flex-wrap: wrap; margin: 0; font-size: 0.9rem; }
 </style>

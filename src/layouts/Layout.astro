@@ -164,6 +164,7 @@ const PUBLIC_URL = "https://rtfp.io";
       <h1>RTFP</h1>
       <nav>
         <a href="/" aria-current={Astro.url.pathname === "/" ? "page" : undefined}>Findings</a>
+        <a href="/data" aria-current={Astro.url.pathname.startsWith("/data") ? "page" : undefined}>Platforms</a>
         <a href="/sources" aria-current={Astro.url.pathname === "/sources" ? "page" : undefined}>Sources</a>
         <a href="/api" aria-current={Astro.url.pathname === "/api" ? "page" : undefined}>API</a>
         <a href="/about" aria-current={Astro.url.pathname === "/about" ? "page" : undefined}>About</a>
