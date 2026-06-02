@@ -1,0 +1,249 @@
+---
+// src/pages/compare/headlines.astro
+//
+// Cross-platform comparison of the headline metrics. Four ranked bar charts:
+// own-initiative moderation volume, automation share, platform size (AMAR),
+// and per-user enforcement. Rendered statically at build time.
+//
+// The full dataset is embedded in the page as JSON (#rtfp-headlines-data) so
+// that a later interactive upgrade (live provider toggling) can read it
+// without a rebuild or a new data round-trip.
+
+import Layout from "../../layouts/Layout.astro";
+import { fetchFromSupabase } from "../../lib/supabase.js";
+
+const [overviewRows, automationRows, perUserRows] = await Promise.all([
+  fetchFromSupabase("provider_overview", {
+    select: "provider_slug,provider_name,amar_eu_total",
+    order: "provider_name.asc",
+  }),
+  fetchFromSupabase("automation_share_by_provider", {
+    filters: { basis: "eq.tc" },
+    select: "provider_slug,provider_name,measures_total,automation_share_pct",
+  }),
+  fetchFromSupabase("headline_metrics_normalised", {
+    filters: { metric_key: "eq.account_actions", dimension_key: "eq.all" },
+    select: "provider_name,absolute_value,per_million_amar",
+  }),
+]);
+
+// Dedupe provider_overview (one row per filing) and build a slug-keyed base.
+const MARKETPLACE_SLUGS = new Set([
+  "amazon-store", "zalando", "aliexpress", "shein", "temu",
+]);
+
+const bySlug = new Map();
+for (const r of overviewRows) {
+  if (bySlug.has(r.provider_slug)) continue;
+  bySlug.set(r.provider_slug, {
+    slug: r.provider_slug,
+    name: r.provider_name,
+    type: MARKETPLACE_SLUGS.has(r.provider_slug) ? "marketplace" : "social",
+    amar: r.amar_eu_total ?? null,
+    volume: null,
+    automation: null,
+    perThousandUsers: null,
+  });
+}
+
+// Join automation + volume by slug.
+for (const r of automationRows) {
+  const p = bySlug.get(r.provider_slug);
+  if (!p) continue;
+  p.volume = r.measures_total ?? null;
+  p.automation = r.automation_share_pct ?? null;
+}
+
+// Join per-user actions by name (this view exposes provider_name, not slug).
+for (const r of perUserRows) {
+  const p = [...bySlug.values()].find(x => x.name === r.provider_name);
+  if (!p) continue;
+  // per_million_amar -> per 1,000 users, matching the home-page framing.
+  p.perThousandUsers =
+    r.per_million_amar != null ? r.per_million_amar / 1000 : null;
+}
+
+const providers = [...bySlug.values()];
+
+// --- Chart metric definitions ---
+const metrics = [
+  {
+    key: "volume",
+    anchor: "volume",
+    title: "Own-initiative moderation volume",
+    blurb:
+      "Total content moderation actions each platform took on its own initiative under its terms and conditions. Social platforms and marketplaces are shown together — the single largest moderator here is a marketplace.",
+    valueKey: "volume",
+    format: "compact",
+    unit: "actions",
+  },
+  {
+    key: "automation",
+    anchor: "automation",
+    title: "Automation share",
+    blurb:
+      "The share of terms-and-conditions moderation each platform reports taking \u201Csolely by automated means.\u201D Social platforms cluster high; marketplaces vary widely.",
+    valueKey: "automation",
+    format: "percent",
+    unit: "%",
+  },
+  {
+    key: "amar",
+    anchor: "size",
+    title: "Platform size (EU monthly active recipients)",
+    blurb:
+      "Average monthly active recipients in the EU — each platform\u2019s own reported measure of its size, and the denominator for per-user comparisons. One platform did not report this figure.",
+    valueKey: "amar",
+    format: "compact",
+    unit: "users",
+  },
+  {
+    key: "perUser",
+    anchor: "per-user",
+    title: "Account actions per 1,000 EU users",
+    blurb:
+      "Account-level actions divided by platform size. Per-user rates expose enforcement intensity that raw totals obscure. Platforms that did not report a user base are excluded.",
+    valueKey: "perThousandUsers",
+    format: "decimal",
+    unit: "per 1,000",
+  },
+];
+
+// --- Formatting helpers ---
+const fmtFull = (n) =>
+  n == null ? "—" : Number(n).toLocaleString("en-GB");
+
+function fmtCompact(n) {
+  if (n == null) return "—";
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, "") + "B";
+  if (abs >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
+  if (abs >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, "") + "k";
+  return String(n);
+}
+
+function fmtValue(n, format) {
+  if (n == null) return "—";
+  if (format === "compact") return fmtCompact(n);
+  if (format === "percent") return `${Number(n).toFixed(2)}%`;
+  if (format === "decimal") return Number(n).toFixed(1);
+  return fmtFull(n);
+}
+
+// Build a sorted, non-null row list for a given metric.
+function rowsFor(valueKey) {
+  return providers
+    .filter(p => p[valueKey] != null)
+    .sort((a, b) => b[valueKey] - a[valueKey]);
+}
+
+const title = "Compare: headline metrics — RTFP";
+const description =
+  "The headline DSA transparency metrics ranked across every platform RTFP covers: moderation volume, automation, platform size, and per-user enforcement.";
+---
+
+<Layout title={title} description={description}>
+  <p class="breadcrumb"><a href="/">← Findings</a></p>
+
+  <h2>Headline metrics, compared</h2>
+  <p>
+    Each platform\u2019s headline figures from the H2 2025 harmonised filings,
+    ranked side by side. Bars are shaded by platform type.
+  </p>
+
+  <div class="legend">
+    <span class="legend-item"><span class="swatch swatch-social"></span> Social platform</span>
+    <span class="legend-item"><span class="swatch swatch-marketplace"></span> Marketplace</span>
+  </div>
+
+  <nav class="metric-nav">
+    {metrics.map(m => <a href={`#${m.anchor}`}>{m.title}</a>)}
+  </nav>
+
+  {metrics.map(m => {
+    const rows = rowsFor(m.valueKey);
+    const max = Math.max(1, ...rows.map(r => r[m.valueKey]));
+    return (
+      <section class="metric" id={m.anchor}>
+        <h3>{m.title}</h3>
+        <p class="blurb">{m.blurb}</p>
+        <div class="bar-chart">
+          {rows.map(r => (
+            <div class="bar-row">
+              <a class="bar-label" href={`/data/${r.slug}`}>{r.name}</a>
+              <span class="bar-track">
+                <span
+                  class={`bar-fill ${r.type === "marketplace" ? "fill-marketplace" : "fill-social"}`}
+                  style={`width: ${(r[m.valueKey] / max * 100).toFixed(1)}%`}
+                ></span>
+              </span>
+              <span class="bar-value">{fmtValue(r[m.valueKey], m.format)}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  })}
+
+  <p class="footnote">
+    Figures are as filed for H2 2025. Amazon Store\u2019s figures are as
+    originally published in February 2026; Amazon published higher restated
+    figures in April 2026. Source filings are linked on the
+    <a href="/sources">Sources</a> page; the underlying data is queryable via
+    the <a href="/api">API</a>.
+  </p>
+
+  <!-- Full dataset embedded for a future interactive upgrade. Does not execute. -->
+  <script type="application/json" id="rtfp-headlines-data" set:html={JSON.stringify({ providers, metrics: metrics.map(({ key, title, valueKey, format, unit }) => ({ key, title, valueKey, format, unit })) })}></script>
+</Layout>
+
+<style>
+  .breadcrumb { font-size: 0.85rem; margin-bottom: 1rem; }
+
+  .legend { display: flex; gap: 1.5rem; font-size: 0.85rem; color: var(--ink-dim); margin: 0 0 1rem; }
+  .legend-item { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .swatch { width: 0.9rem; height: 0.9rem; border-radius: 2px; display: inline-block; }
+  .swatch-social { background: var(--ink); }
+  .swatch-marketplace { background: var(--ink-faint); }
+
+  .metric-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    font-size: 0.85rem;
+    margin: 0 0 2.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .metric-nav a { color: var(--ink-dim); text-decoration: none; }
+  .metric-nav a:hover { color: var(--ink); text-decoration: underline; }
+
+  .metric { margin: 0 0 3rem; scroll-margin-top: 1.5rem; }
+  .metric h3 { margin-bottom: 0.25rem; }
+  .blurb { font-size: 0.9rem; margin: 0 0 1.25rem; }
+
+  .bar-chart { display: flex; flex-direction: column; gap: 0.45rem; }
+  .bar-row {
+    display: grid;
+    grid-template-columns: 9rem 1fr auto;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+  }
+  @media (max-width: 600px) { .bar-row { grid-template-columns: 6.5rem 1fr auto; } }
+  .bar-label {
+    color: var(--ink);
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bar-label:hover { text-decoration: underline; }
+  .bar-track { background: #f0efed; border-radius: 3px; height: 1.15rem; overflow: hidden; }
+  .bar-fill { display: block; height: 100%; border-radius: 3px; min-width: 2px; }
+  .fill-social { background: var(--ink); }
+  .fill-marketplace { background: var(--ink-faint); }
+  .bar-value { font-variant-numeric: tabular-nums; color: var(--ink-dim); min-width: 4rem; text-align: right; }
+
+  .footnote { font-size: 0.8rem; color: var(--ink-faint); margin-top: 2rem; }
+</style>
