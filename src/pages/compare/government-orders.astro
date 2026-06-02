@@ -1,0 +1,141 @@
+---
+// src/pages/compare/government-orders.astro
+// Cross-platform comparison of government orders under Article 15(1)(a).
+//
+// The "what governments target" chart aggregates by category_code and is
+// filtered to top-level categories (STATEMENT_CATEGORY_*) only. The taxonomy
+// also contains narrower KEYWORD_* rows that nest under these; including both
+// would double-count, so the keyword level is excluded from this chart.
+
+import Layout from "../../layouts/Layout.astro";
+import { fetchFromSupabase } from "../../lib/supabase.js";
+
+const MARKETPLACE_SLUGS = new Set(["amazon-store", "zalando", "aliexpress", "shein", "temu"]);
+const typeOf = (slug) => MARKETPLACE_SLUGS.has(slug) ? "marketplace" : "social";
+
+const [summaryRows, byCategoryRows] = await Promise.all([
+  fetchFromSupabase("government_orders_summary", {
+    select: "provider_slug,provider_name,total_orders_act,total_orders_info",
+    order: "total_orders_act.desc.nullslast",
+  }),
+  fetchFromSupabase("government_orders_by_category", {
+    select: "provider_slug,category_code,category_label,orders_act_received",
+  }),
+]);
+
+const ordersToAct = summaryRows
+  .filter(r => r.total_orders_act != null)
+  .map(r => ({ slug: r.provider_slug, name: r.provider_name, type: typeOf(r.provider_slug), value: Number(r.total_orders_act) }))
+  .sort((a, b) => b.value - a.value);
+
+// Aggregate by category_code, top-level categories only, to avoid mixing
+// taxonomy levels (which would double-count keyword rows under their parents).
+const catAgg = new Map();
+for (const r of byCategoryRows) {
+  const code = r.category_code ?? "";
+  if (!code.startsWith("STATEMENT_CATEGORY_")) continue;
+  const v = Number(r.orders_act_received ?? 0);
+  if (!v) continue;
+  if (!catAgg.has(code)) catAgg.set(code, { code, label: r.category_label ?? code, value: 0 });
+  catAgg.get(code).value += v;
+}
+const byCategory = [...catAgg.values()]
+  .sort((a, b) => b.value - a.value)
+  .slice(0, 12);
+
+const fmt = (n) => n == null ? "—" : Number(n).toLocaleString("en-GB");
+const pct = (v, max) => `${(v / Math.max(1, max) * 100).toFixed(1)}%`;
+const maxAct = Math.max(1, ...ordersToAct.map(r => r.value));
+const maxCat = Math.max(1, ...byCategory.map(r => r.value));
+
+const title = "Compare: government orders — RTFP";
+const description = "Government orders to act against illegal content, ranked across every platform RTFP covers.";
+---
+
+<Layout title={title} description={description}>
+  <p class="breadcrumb"><a href="/">← Findings</a></p>
+  <h2>Government orders, compared</h2>
+  <p>
+    Under Article 15(1)(a), platforms report the orders they received from EU
+    member state authorities to act against illegal content. These are usually
+    imagined as a social-media matter — the data shows otherwise.
+  </p>
+
+  <div class="legend">
+    <span class="legend-item"><span class="swatch swatch-social"></span> Social platform</span>
+    <span class="legend-item"><span class="swatch swatch-marketplace"></span> Marketplace</span>
+  </div>
+
+  <section class="metric">
+    <h3>Orders to act against illegal content</h3>
+    <p class="blurb">Total orders each platform received from EU member state authorities.</p>
+    <div class="bar-chart">
+      {ordersToAct.map(r => (
+        <div class="bar-row">
+          <a class="bar-label" href={`/data/${r.slug}`} title={r.name}>{r.name}</a>
+          <span class="bar-track">
+            <span class={`bar-fill ${r.type === "marketplace" ? "fill-marketplace" : "fill-social"}`} style={`width: ${pct(r.value, maxAct)}`}></span>
+          </span>
+          <span class="bar-value">{fmt(r.value)}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="metric">
+    <h3>What governments target</h3>
+    <p class="blurb">Orders to act, aggregated by top-level content category across all platforms. Shows which kinds of content draw the most state takedown demands.</p>
+    <div class="bar-chart categories">
+      {byCategory.map(r => (
+        <div class="bar-row">
+          <span class="bar-label cat" title={r.label}>{r.label}</span>
+          <span class="bar-track">
+            <span class="bar-fill fill-social" style={`width: ${pct(r.value, maxCat)}`}></span>
+          </span>
+          <span class="bar-value">{fmt(r.value)}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <p class="footnote">
+    Figures as filed for H2 2025. Categories shown are the harmonised template's
+    top-level statement categories. Source filings on the
+    <a href="/sources">Sources</a> page; data via the <a href="/api">API</a>.
+    A breakdown by issuing member state is planned.
+  </p>
+
+  <script type="application/json" id="rtfp-govorders-data" set:html={JSON.stringify({ ordersToAct, byCategory })}></script>
+</Layout>
+
+<style>
+  .breadcrumb { font-size: 0.85rem; margin-bottom: 1rem; }
+  .legend { display: flex; gap: 1.5rem; font-size: 0.85rem; color: var(--ink-dim); margin: 0 0 1.5rem; }
+  .legend-item { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .swatch { width: 0.9rem; height: 0.9rem; border-radius: 2px; display: inline-block; }
+  .swatch-social { background: var(--ink); }
+  .swatch-marketplace { background: var(--ink-faint); }
+  .metric { margin: 0 0 3rem; }
+  .metric h3 { margin-bottom: 0.25rem; }
+  .blurb { font-size: 0.9rem; margin: 0 0 1.25rem; }
+
+  .bar-chart { display: flex; flex-direction: column; gap: 0.45rem; }
+  .bar-row { display: grid; grid-template-columns: 9rem 1fr auto; align-items: center; gap: 0.75rem; font-size: 0.85rem; }
+  @media (max-width: 600px) { .bar-row { grid-template-columns: 7rem 1fr auto; } }
+
+  /* Category charts have long descriptive labels: wider column, wrapping. */
+  .bar-chart.categories .bar-row { grid-template-columns: 16rem 1fr auto; align-items: start; }
+  @media (max-width: 600px) { .bar-chart.categories .bar-row { grid-template-columns: 9rem 1fr auto; } }
+  .bar-chart.categories .bar-label.cat { white-space: normal; line-height: 1.25; overflow: visible; text-overflow: clip; }
+  .bar-chart.categories .bar-track { margin-top: 0.15rem; }
+
+  .bar-label { color: var(--ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-label.cat { color: var(--ink-dim); }
+  a.bar-label:hover { text-decoration: underline; }
+  .bar-track { background: #f0efed; border-radius: 3px; height: 1.15rem; overflow: hidden; }
+  .bar-fill { display: block; height: 100%; border-radius: 3px; min-width: 2px; }
+  .fill-social { background: var(--ink); }
+  .fill-marketplace { background: var(--ink-faint); }
+  .bar-value { font-variant-numeric: tabular-nums; color: var(--ink-dim); min-width: 3.5rem; text-align: right; }
+  .footnote { font-size: 0.8rem; color: var(--ink-faint); margin-top: 2rem; }
+</style>
