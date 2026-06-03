@@ -1,6 +1,6 @@
 ---
 // src/pages/findings.astro
-// RTFP findings page — headline findings from the H2 2025 harmonised filings.
+// RTFP findings page - headline findings from the H2 2025 harmonised filings.
 // (Previously the home page; moved to /findings when the intro home was added.)
 
 import Layout from "../layouts/Layout.astro";
@@ -49,7 +49,7 @@ const linkedinLanguages = languageCoverage.find(l => l.provider_name === "Linked
 const temuProvider = providers.find(p => p.provider_name === "Temu");
 const temuReportsNoAmar = temuProvider ? (temuProvider.amar_eu_total == null) : false;
 
-const fmt = (n) => n?.toLocaleString("en-GB") ?? "—";
+const fmt = (n) => n?.toLocaleString("en-GB") ?? "-";
 
 // X-vs-TikTok per-user multiple, computed rather than hardcoded.
 const xVsTiktokMultiple =
@@ -67,17 +67,17 @@ const socialTotalMeasures = 706911338;   // Sum of the 7 social platforms
 const amazonGovOrders = 947;             // Amazon Store, orders to act
 const facebookGovOrders = 1358;          // Facebook, orders to act (the max)
 
-const title = "Findings — RTFP";
+const title = "Findings - RTFP";
 const description = "Headline cross-platform comparisons from the first harmonised EU Digital Services Act transparency filings (H2 2025).";
 ---
 
 <Layout title={title} description={description}>
-  <h2>Headline findings from the first harmonised DSA filings</h2>
+  <h2>Some findings from the first harmonised DSA filings</h2>
   <p>
     Since H2 2025, the largest platforms have been required to file their EU
     transparency reports in a common format. For the first time, their numbers
-    can be compared directly. These are some comparisons worth knowing from
-    the harmonised filings of the largest social platforms and marketplaces.
+    can be compared directly. These are some comparisons pulled from
+    these harmonised filings.
   </p>
   <p class="amar-footnote">
     Coverage: {providerCount} platforms.
@@ -86,11 +86,11 @@ const description = "Headline cross-platform comparisons from the first harmonis
   <section class="findings">
     <article class="finding hero">
       <p class="number">{Math.round(temuTotalMeasures / 1e6)}M</p>
-      <p class="number-context">Temu — own-initiative moderation actions, H2 2025</p>
+      <p class="number-context">Temu - own-initiative moderation actions, H2 2025</p>
       <h3>One marketplace out-moderated every social platform combined</h3>
       <p>
         Temu reported {fmt(temuTotalMeasures)} content moderation actions taken
-        on its own initiative under its terms and conditions — more than the
+        on its own initiative under its terms and conditions - more than the
         seven social platforms in this dataset added together
         (about {fmt(socialTotalMeasures)}). The platform most associated with
         consumer goods reported more moderation activity than TikTok,
@@ -101,13 +101,13 @@ const description = "Headline cross-platform comparisons from the first harmonis
 
     <article class="finding">
       <p class="number">{sheinAutomation?.automation_share_pct ?? 0}%</p>
-      <p class="number-context">Shein — share of moderation taken solely by automated means</p>
+      <p class="number-context">Shein - share of moderation taken solely by automated means</p>
       <h3>Social platforms automate heavily - marketplaces don't agree</h3>
       <p>
         All seven social platforms report automating between roughly 78% and
         99% of their terms-and-conditions moderation
-        (X {xAutomation?.automation_share_pct ?? "—"}%,
-        Pinterest {pinterestAutomation?.automation_share_pct ?? "—"}%).
+        (X {xAutomation?.automation_share_pct ?? "-"}%,
+        Pinterest {pinterestAutomation?.automation_share_pct ?? "-"}%).
         Marketplaces scatter from 0% to 97%. The three least-automated
         moderators of all {providerCount} are marketplaces.
       </p>
@@ -116,12 +116,12 @@ const description = "Headline cross-platform comparisons from the first harmonis
 
     <article class="finding">
       <p class="number">{fmt(amazonGovOrders)}</p>
-      <p class="number-context">Amazon Store — government orders to act against illegal content</p>
+      <p class="number-context">Amazon Store - government orders to act against illegal content</p>
       <h3>A shopping platform fields the second-most government takedown orders</h3>
       <p>
         Government orders to remove illegal content are usually imagined as a
         social-media matter. Yet Amazon Store received {fmt(amazonGovOrders)}
-        such orders from EU member state authorities in H2 2025 — second only
+        such orders from EU member state authorities in H2 2025 - second only
         to Facebook ({fmt(facebookGovOrders)}), and ahead of TikTok, Instagram
         and every other platform in the dataset.
       </p>
@@ -130,12 +130,12 @@ const description = "Headline cross-platform comparisons from the first harmonis
 
     <article class="finding">
       <p class="number">{temuReportsNoAmar ? "n/a" : fmt(temuProvider?.amar_eu_total)}</p>
-      <p class="number-context">Temu — average monthly active recipients reported</p>
+      <p class="number-context">Temu - average monthly active recipients reported</p>
       <h3>The largest moderator doesn't disclose how large it is</h3>
       <p>
         Temu reported the most moderation activity of any platform here, but
         left its average-monthly-active-recipients figure blank in the filing. Without a user
-        base, its moderation cannot be expressed per user — the measure that
+        base, its moderation cannot be expressed per user - the measure that
         makes platforms of different sizes comparable. 
       </p>
       <a class="more" href="/data/temu">See Temu's data →</a>
@@ -143,10 +143,10 @@ const description = "Headline cross-platform comparisons from the first harmonis
 
     <article class="finding">
       <p class="number">{fmt(instaTermination?.absolute_value)}</p>
-      <p class="number-context">Instagram — accounts terminated in EU, H2 2025</p>
+      <p class="number-context">Instagram - accounts terminated in EU, H2 2025</p>
       <h3>Instagram terminated tens of millions of EU accounts in six months</h3>
       <p>
-        Sustained across 184 days. Instagram does not suspend accounts — it
+        Sustained across 184 days. Instagram does not suspend accounts - it
         only terminates. A binary policy applied at industrial scale.
       </p>
       <a class="more" href="/compare/headlines">See the comparison →</a>
@@ -154,11 +154,11 @@ const description = "Headline cross-platform comparisons from the first harmonis
 
     <article class="finding">
       <p class="number">{linkedinLanguages?.value_if_reported ?? 12}/24</p>
-      <p class="number-context">LinkedIn — official EU languages with reported moderators</p>
+      <p class="number-context">LinkedIn - official EU languages with reported moderators</p>
       <h3>LinkedIn doesn't staff half the EU's official languages</h3>
       <p>
         Czech, Danish, Estonian, Greek, Hungarian, Latvian, Romanian, Slovak,
-        Slovenian, Swedish, Maltese, and Irish — all reported as zero
+        Slovenian, Swedish, Maltese, and Irish - all reported as zero
         moderators. LinkedIn has hundreds of thousands of Greek users and
         zero Greek-speaking moderators.
       </p>
@@ -167,12 +167,12 @@ const description = "Headline cross-platform comparisons from the first harmonis
 
     <article class="finding">
       <p class="number">
-        {xPerUser ? Number(xPerUser.per_million_amar / 1000).toFixed(1) : "—"}
+        {xPerUser ? Number(xPerUser.per_million_amar / 1000).toFixed(1) : "-"}
       </p>
-      <p class="number-context">X — account actions per thousand EU users</p>
+      <p class="number-context">X - account actions per thousand EU users</p>
       <h3>
         X enforces far more per user than TikTok{
-          xVsTiktokMultiple ? ` — about ${xVsTiktokMultiple.toFixed(0)}×` : ""
+          xVsTiktokMultiple ? ` - about ${xVsTiktokMultiple.toFixed(0)}×` : ""
         }
       </h3>
       <p>
@@ -181,12 +181,17 @@ const description = "Headline cross-platform comparisons from the first harmonis
         in absolute terms. Per-user rates expose differences that raw totals
         hide.
       </p>
+      <p>
+        These are a selected handful. To go through the underlying data yourself,
+        the <a href="/explore">Explore page</a> lets you query every dataset directly.
+        </p>
       <a class="more" href="/compare/headlines">See the comparison →</a>
     </article>
   </section>
 </Layout>
 
 <style>
+    
   .amar-footnote { font-size: 0.9rem; color: var(--ink-faint); margin-top: 1rem; margin-bottom: 2rem; }
 
   .findings { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-top: 2rem; }

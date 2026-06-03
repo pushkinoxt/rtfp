@@ -37,10 +37,10 @@ const socialNames = nameList(social);
 const marketplaceNames = nameList(marketplaces);
 ---
 
-<Layout title="About — RTFP" description="What RTFP is, what it isn't, how the data is built, and how every number reconciles against the providers' own published filings.">
+<Layout title="About - RTFP" description="What RTFP is, what it isn't, how the data is built, and how every number reconciles against the providers' own published filings.">
   <h2>About</h2>
   <p>
-    RTFP — Read The Fine Print — is a cross-platform comparison of the
+    RTFP - Read The Fine Print - is a cross-platform comparison of the
     largest platforms' EU Digital Services Act transparency reports. We load
     each platform's published filing into one normalised database and surface the
     comparisons that no one provider reports alone. It is run
@@ -53,14 +53,14 @@ const marketplaceNames = nameList(marketplaces);
     twice a year since 2023. For the first two years, each platform reported in
     its own format, with its own categories and its own definitions, so
     comparison across platforms was close to impossible. From the H2 2025
-    reporting cycle — the filings published in February 2026 — every platform
+    reporting cycle - the filings published in February 2026 - every platform
     must use the harmonised template defined by Commission Implementing
     Regulation (EU) 2024/2835 of 4 November 2024. For the first time, the same
     questions are answered by every platform in the same shape, and the numbers
     can be set side by side. RTFP exists to do exactly that.
   </p>
   <p>
-    Lists of where these reports live already exist — the Commission publishes
+    Lists of where these reports live already exist - the Commission publishes
     one, and so do others. What none of them does is make the data itself
     queryable. RTFP loads the filings, normalises them, and opens the result up
     for anyone to read, compare, and check.
@@ -100,7 +100,7 @@ const marketplaceNames = nameList(marketplaces);
     Each platform publishes its H2 2025 report as a bundle of CSV files laid out
     according to Annex II of the Implementing Regulation. We load those files as
     filed, preserving the original figures, and link every row back to the
-    specific filing it came from — which platform, which reporting period, which
+    specific filing it came from - which platform, which reporting period, which
     publication date and version. Nothing is recomputed. Every number traces to a 
     cell in a published CSV.
   </p>
@@ -109,7 +109,7 @@ const marketplaceNames = nameList(marketplaces);
     the same template differently: some leave whole sections blank, some invent
     sub-categories the template doesn't define, some report the same country or
     language under different codes. Where it is needed to make platforms
-    comparable, we normalise these surface differences — for example, Greece is
+    comparable, we normalise these surface differences - for example, Greece is
     reported as both GR and EL across platforms, and a few platforms write a
     country code where a language code is expected. These normalisations are
     applied transparently in database views, and the underlying raw figures are
@@ -121,7 +121,7 @@ const marketplaceNames = nameList(marketplaces);
   <h3>What this is not</h3>
   <p>
     This is not an audit. Every number on the site is what a platform reported
-    about itself. Where platforms disagree on methodology — and they do — that
+    about itself. Where platforms disagree on methodology - and they do - that
     disagreement is surfaced as a finding, not resolved. Garbage in, garbage
     out: if a platform's filing is wrong, RTFP will faithfully show you the
     wrong number, traced back to where it came from.
@@ -141,12 +141,12 @@ const marketplaceNames = nameList(marketplaces);
   <h3>How the numbers reconcile</h3>
   <p>
     Every finding links to the database view behind it. Every view is publicly
-    queryable — without writing any code on the <a href="/explore">explore</a>
+    queryable - without writing any code on the <a href="/explore">explore</a>
     page, or directly via the <a href="/api">API</a>. And every filing the
     site draws from is listed on the <a href="/sources">sources</a> page, linked
     to the provider's own published report, so any number here can be checked
     against the original. If a figure on RTFP ever disagrees with a provider's
-    filing, the provider's filing wins — please tell us and we'll correct it.
+    filing, the provider's filing wins - please tell us and we'll correct it.
   </p>
 
   <h3>Finding your way around</h3>
