@@ -1,0 +1,498 @@
+---
+// src/pages/explore.astro
+//
+// The interactive "explore the data" page — a no-code query console over the
+// RTFP public PostgREST API.
+//
+// Unlike every other page on the site, this one does NOT fetch at build time.
+// It ships a catalogue of endpoints plus the publishable credentials to the
+// browser (via define:vars) and queries Supabase live as the visitor clicks.
+// That keeps it a static build with no server, while still being interactive.
+//
+// The publishable key is the same anon key already embedded in the example
+// URLs on /api — it is designed to be shared and is read-only.
+
+import Layout from "../layouts/Layout.astro";
+
+const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  throw new Error(
+    "Missing PUBLIC_SUPABASE_URL or PUBLIC_SUPABASE_PUBLISHABLE_KEY for /explore."
+  );
+}
+
+// The endpoint catalogue. Kept in step with /api. `order` is an optional
+// default sort applied server-side; only set it to a column known to exist.
+const CATALOG = [
+  { group: "Foundational", name: "provider_overview", description: "One row per (provider × filing): metadata, filing dates, EU total AMAR.", order: "amar_eu_total.desc.nullslast" },
+  { group: "Foundational", name: "amar_by_country", description: "Average monthly active recipients per Member State per provider." },
+
+  { group: "Government orders", name: "government_orders_summary", description: "Grand totals of government orders per provider, with median response times." },
+  { group: "Government orders", name: "government_orders_by_country", description: "Orders from Member State authorities, by country (act vs information separately)." },
+  { group: "Government orders", name: "government_orders_by_category", description: "Orders by content category, summed across Member States." },
+
+  { group: "Notices & Trusted Flaggers", name: "notices_by_category", description: "Article 16 user notices by category, with the Trusted Flagger breakdown alongside." },
+  { group: "Notices & Trusted Flaggers", name: "trusted_flagger_intensity", description: "Share of notices coming from Trusted Flaggers, per category." },
+  { group: "Notices & Trusted Flaggers", name: "notice_response_times", description: "Median time to action notices — regular vs Trusted Flagger." },
+
+  { group: "Own-initiative moderation", name: "moderation_volume_comparison", description: "All own-initiative actions, with basis (illegal vs ToS) and level columns. Filter level=total to avoid double-counting." },
+  { group: "Own-initiative moderation", name: "automation_share_by_provider", description: "Percentage of moderation taken solely by automated means, per provider and basis." },
+  { group: "Own-initiative moderation", name: "restriction_type_breakdown", description: "Actions aggregated into the four Annex II families: visibility, monetary, service, account." },
+  { group: "Own-initiative moderation", name: "account_actions_summary", description: "Account suspensions and terminations per provider per basis." },
+
+  { group: "Appeals, disputes, misuse", name: "internal_complaints_summary", description: "Article 20 internal complaints, with reversal and upheld outcomes." },
+  { group: "Appeals, disputes, misuse", name: "out_of_court_disputes", description: "Article 21 disputes to certified bodies, with provider implementation rate." },
+  { group: "Appeals, disputes, misuse", name: "misuse_suspensions", description: "Article 23 suspensions for repeat offenders, split three ways." },
+
+  { group: "Human resources", name: "human_moderators_by_language", description: "Moderator headcount per EU official language per provider." },
+
+  { group: "Derived metrics", name: "actions_per_user", description: "Own-initiative moderation volume divided by EU AMAR, per provider and basis." },
+  { group: "Derived metrics", name: "amar_per_moderator", description: "EU AMAR divided by total human moderators per provider.", order: "users_per_moderator.desc.nullslast" },
+  { group: "Derived metrics", name: "headline_metrics_normalised", description: "Three absolute-volume metrics with their per-million-AMAR rates alongside." },
+
+  { group: "Data quality", name: "filings_overview", description: "One row per filing event with row-count summaries per source table." },
+  { group: "Data quality", name: "anomalies_by_filing", description: "Methodology and data-quality observations recorded during import." },
+  { group: "Data quality", name: "disclosure_coverage", description: "Per (provider × mandated disclosure): whether the provider populated it." },
+
+  { group: "Reference tables", name: "country_codes", description: "30 rows: EU27 plus Iceland, Liechtenstein, Norway (EU convention: EL for Greece)." },
+  { group: "Reference tables", name: "language_codes", description: "24 rows: the official EU languages per Article 55 TFEU." },
+];
+
+const title = "Explore the data — RTFP";
+const description = "Query every view in the RTFP database from your browser. Search, filter, sort and download the harmonised DSA transparency data — no code required.";
+---
+
+<Layout title={title} description={description} wide={true}>
+  <h2>Explore the data</h2>
+  <p>
+    Every endpoint behind the <a href="/api">API</a> and the
+    <a href="/findings">findings</a>, queried live from your browser. Pick a
+    dataset on the left, then search, sort and filter the rows. Nothing is
+    pre-baked — these are the numbers exactly as the database returns them.
+  </p>
+
+  <div class="explorer">
+    <aside class="sidebar">
+      <input
+        id="endpoint-search"
+        type="search"
+        placeholder="Search datasets…"
+        autocomplete="off"
+        aria-label="Search datasets"
+      />
+      <div id="endpoint-list" class="endpoint-list"></div>
+    </aside>
+
+    <section class="results">
+      <div class="result-head">
+        <h3 id="result-title">—</h3>
+        <p id="result-desc" class="result-desc"></p>
+      </div>
+
+      <div class="controls">
+        <label class="ctrl" id="provider-ctrl" hidden>
+          <span>Platform</span>
+          <select id="provider-filter"><option value="">All platforms</option></select>
+        </label>
+        <label class="ctrl filter-ctrl">
+          <span>Filter rows</span>
+          <input id="row-filter" type="search" placeholder="Type to filter…" autocomplete="off" />
+        </label>
+        <label class="ctrl">
+          <span>Max rows</span>
+          <select id="limit-select">
+            <option value="100">100</option>
+            <option value="1000" selected>1,000</option>
+            <option value="5000">5,000</option>
+          </select>
+        </label>
+        <button id="download-csv" type="button" disabled>Download CSV</button>
+      </div>
+
+      <p id="status" class="status"></p>
+      <div id="table-wrap" class="table-wrap"></div>
+    </section>
+  </div>
+
+  <p class="cap-note">
+    Queries run against the live database (rate-limited to 60 requests per
+    minute). The server returns at most the chosen row cap; very large views may
+    be truncated. For scripted access, use the <a href="/api">REST API</a> directly.
+  </p>
+</Layout>
+
+<script define:vars={{ SUPABASE_URL, SUPABASE_KEY, CATALOG }}>
+  (function () {
+    const $ = (id) => document.getElementById(id);
+    const fmtNum = (n) => Number(n).toLocaleString("en-GB");
+
+    const state = {
+      endpoint: null,
+      rows: [],
+      providerCol: null,
+      sortKey: null,
+      sortDir: "asc",
+    };
+
+    // ---- Endpoint list (left) ----
+    function renderEndpointList(query) {
+      const q = (query || "").trim().toLowerCase();
+      const list = $("endpoint-list");
+      list.innerHTML = "";
+      const groups = {};
+      for (const ep of CATALOG) {
+        if (q && !(`${ep.name} ${ep.description}`.toLowerCase().includes(q))) continue;
+        (groups[ep.group] = groups[ep.group] || []).push(ep);
+      }
+      const groupNames = Object.keys(groups);
+      if (groupNames.length === 0) {
+        list.innerHTML = '<p class="no-match">No datasets match.</p>';
+        return;
+      }
+      for (const g of groupNames) {
+        const h = document.createElement("p");
+        h.className = "group-label";
+        h.textContent = g;
+        list.appendChild(h);
+        for (const ep of groups[g]) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "endpoint-btn" + (state.endpoint && state.endpoint.name === ep.name ? " active" : "");
+          b.textContent = ep.name;
+          b.addEventListener("click", () => selectEndpoint(ep));
+          list.appendChild(b);
+        }
+      }
+    }
+
+    // ---- URL building (for the fetch; the key travels in headers, not the URL) ----
+    function buildUrl(ep) {
+      const limit = $("limit-select").value;
+      const params = new URLSearchParams();
+      if (ep.order) params.set("order", ep.order);
+      params.set("limit", limit);
+      return `${SUPABASE_URL}/rest/v1/${ep.name}?${params.toString()}`;
+    }
+
+    // ---- Fetch ----
+    async function selectEndpoint(ep) {
+      state.endpoint = ep;
+      state.sortKey = null;
+      $("result-title").textContent = ep.name;
+      $("result-desc").textContent = ep.description;
+      $("row-filter").value = "";
+      renderEndpointList($("endpoint-search").value);
+      await fetchRows();
+    }
+
+    async function fetchRows() {
+      const ep = state.endpoint;
+      if (!ep) return;
+      setStatus("Loading…");
+      $("table-wrap").innerHTML = "";
+      $("download-csv").disabled = true;
+      try {
+        const res = await fetch(buildUrl(ep), {
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+        });
+        if (!res.ok) {
+          const body = await res.text();
+          setStatus(`API error ${res.status}: ${body.slice(0, 240)}`, true);
+          return;
+        }
+        state.rows = await res.json();
+        detectProviderColumn();
+        renderTable();
+      } catch (err) {
+        setStatus(`Could not reach the database: ${err.message}`, true);
+      }
+    }
+
+    function detectProviderColumn() {
+      const cols = state.rows.length ? Object.keys(state.rows[0]) : [];
+      state.providerCol = cols.includes("provider_name")
+        ? "provider_name"
+        : cols.includes("provider_slug")
+        ? "provider_slug"
+        : null;
+      const ctrl = $("provider-ctrl");
+      const sel = $("provider-filter");
+      if (!state.providerCol) {
+        ctrl.hidden = true;
+        sel.value = "";
+        return;
+      }
+      const values = [...new Set(state.rows.map((r) => r[state.providerCol]).filter((v) => v != null))].sort();
+      sel.innerHTML = '<option value="">All platforms</option>';
+      for (const v of values) {
+        const o = document.createElement("option");
+        o.value = v;
+        o.textContent = v;
+        sel.appendChild(o);
+      }
+      ctrl.hidden = false;
+    }
+
+    // ---- View (filter + sort) over the fetched rows ----
+    function isNumericColumn(rows, key) {
+      let sawValue = false;
+      for (const r of rows) {
+        const v = r[key];
+        if (v == null) continue;
+        sawValue = true;
+        if (typeof v !== "number") return false;
+      }
+      return sawValue;
+    }
+
+    function viewRows() {
+      let rows = state.rows.slice();
+      const pv = $("provider-filter").value;
+      if (state.providerCol && pv) rows = rows.filter((r) => String(r[state.providerCol]) === pv);
+      const f = $("row-filter").value.trim().toLowerCase();
+      if (f) {
+        rows = rows.filter((r) =>
+          Object.values(r).some((v) => v != null && String(v).toLowerCase().includes(f))
+        );
+      }
+      if (state.sortKey) {
+        const k = state.sortKey;
+        const numeric = isNumericColumn(state.rows, k);
+        rows.sort((a, b) => {
+          const av = a[k], bv = b[k];
+          if (av == null && bv == null) return 0;
+          if (av == null) return 1;
+          if (bv == null) return -1;
+          let c = numeric ? av - bv : String(av).localeCompare(String(bv));
+          return state.sortDir === "asc" ? c : -c;
+        });
+      }
+      return rows;
+    }
+
+    function renderTable() {
+      const wrap = $("table-wrap");
+      const rows = viewRows();
+      if (state.rows.length === 0) {
+        wrap.innerHTML = "";
+        setStatus("This view returned no rows.");
+        return;
+      }
+      const cols = Object.keys(state.rows[0]);
+      const numericCols = new Set(cols.filter((c) => isNumericColumn(state.rows, c)));
+
+      const table = document.createElement("table");
+      table.className = "data-table";
+      const thead = document.createElement("thead");
+      const htr = document.createElement("tr");
+      for (const c of cols) {
+        const th = document.createElement("th");
+        th.textContent = c + (state.sortKey === c ? (state.sortDir === "asc" ? " ▲" : " ▼") : "");
+        if (numericCols.has(c)) th.classList.add("num");
+        th.addEventListener("click", () => {
+          if (state.sortKey === c) state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+          else { state.sortKey = c; state.sortDir = numericCols.has(c) ? "desc" : "asc"; }
+          renderTable();
+        });
+        htr.appendChild(th);
+      }
+      thead.appendChild(htr);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      for (const r of rows) {
+        const tr = document.createElement("tr");
+        for (const c of cols) {
+          const td = document.createElement("td");
+          const v = r[c];
+          if (v == null) { td.textContent = "—"; td.classList.add("null"); }
+          else if (numericCols.has(c)) { td.textContent = fmtNum(v); td.classList.add("num"); }
+          else td.textContent = String(v);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      wrap.innerHTML = "";
+      wrap.appendChild(table);
+
+      const capped = state.rows.length >= Number($("limit-select").value);
+      let msg = `${fmtNum(rows.length)} of ${fmtNum(state.rows.length)} rows`;
+      if (capped) msg += " (server cap reached — there may be more)";
+      setStatus(msg);
+      $("download-csv").disabled = rows.length === 0;
+    }
+
+    function setStatus(text, isError) {
+      const s = $("status");
+      s.textContent = text;
+      s.classList.toggle("error", !!isError);
+    }
+
+    // ---- CSV ----
+    function downloadCsv() {
+      const rows = viewRows();
+      if (!rows.length) return;
+      const cols = Object.keys(state.rows[0]);
+      const esc = (v) => {
+        if (v == null) return "";
+        const s = String(v);
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const lines = [cols.join(",")];
+      for (const r of rows) lines.push(cols.map((c) => esc(r[c])).join(","));
+      const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `rtfp-${state.endpoint.name}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    // ---- Wire up ----
+    function init() {
+      renderEndpointList("");
+      $("endpoint-search").addEventListener("input", (e) => renderEndpointList(e.target.value));
+      $("row-filter").addEventListener("input", renderTable);
+      $("provider-filter").addEventListener("change", renderTable);
+      $("limit-select").addEventListener("change", fetchRows);
+      $("download-csv").addEventListener("click", downloadCsv);
+      const start = CATALOG.find((e) => e.name === "provider_overview") || CATALOG[0];
+      selectEndpoint(start);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init);
+    } else {
+      init();
+    }
+  })();
+</script>
+
+<style>
+  .explorer {
+    display: grid;
+    grid-template-columns: 16rem 1fr;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    align-items: start;
+  }
+  @media (max-width: 760px) { .explorer { grid-template-columns: 1fr; } }
+
+  /* Sidebar */
+  .sidebar { position: sticky; top: 1rem; }
+  #endpoint-search,
+  #row-filter {
+    width: 100%;
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    color: var(--ink);
+  }
+  .endpoint-list {
+    margin-top: 0.75rem;
+    max-height: 70vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  @media (max-width: 760px) { .endpoint-list { max-height: 16rem; } }
+  .group-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    margin: 0.85rem 0 0.2rem !important;
+  }
+  .endpoint-btn {
+    text-align: left;
+    font-family: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+    font-size: 0.82rem;
+    color: var(--ink-dim);
+    background: none;
+    border: none;
+    border-radius: 5px;
+    padding: 0.3rem 0.45rem;
+    cursor: pointer;
+    width: 100%;
+  }
+  .endpoint-btn:hover { background: var(--code-bg); color: var(--ink); }
+  .endpoint-btn.active { background: var(--ink); color: var(--bg); }
+  .no-match { font-size: 0.85rem; color: var(--ink-faint); }
+
+  /* Results */
+  .results { min-width: 0; }
+  .result-head h3 { margin: 0 0 0.2rem !important; font-family: ui-monospace, monospace; font-size: 1.05rem; }
+  .result-desc { font-size: 0.9rem; margin: 0 0 1rem; }
+
+  .controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+  }
+  .ctrl { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.78rem; color: var(--ink-faint); }
+  .ctrl.filter-ctrl { flex: 1; min-width: 12rem; }
+  .ctrl select {
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    color: var(--ink);
+  }
+
+  button {
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.45rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--ink-faint); }
+  button:disabled { opacity: 0.4; cursor: default; }
+
+  .status { font-size: 0.85rem; color: var(--ink-faint); margin: 0.25rem 0 0.75rem; font-variant-numeric: tabular-nums; }
+  .status.error { color: #b91c1c; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: white; }
+  .table-wrap:empty { display: none; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .data-table th {
+    position: sticky;
+    top: 0;
+    background: #f7f6f4;
+    text-align: left;
+    font-weight: 600;
+    font-family: ui-monospace, monospace;
+    font-size: 0.76rem;
+    color: var(--ink);
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .data-table th:hover { background: var(--code-bg); }
+  .data-table th.num, .data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .data-table td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--ink-dim);
+    white-space: nowrap;
+  }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table td.null { color: var(--ink-faint); }
+
+  .cap-note { font-size: 0.82rem; color: var(--ink-faint); margin-top: 1.5rem; }
+</style>

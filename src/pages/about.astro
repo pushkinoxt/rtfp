@@ -1,5 +1,9 @@
 ---
 // src/pages/about.astro
+// The lengthier "about / methodology" page. Orients a newcomer, sets out what
+// the dataset is and isn't, and explains how the numbers reconcile against the
+// providers' own filings.
+
 import Layout from "../layouts/Layout.astro";
 import { fetchFromSupabase } from "../lib/supabase.js";
 
@@ -22,87 +26,147 @@ const MARKETPLACE_SLUGS = new Set([
 ]);
 const marketplaces = unique.filter(p => MARKETPLACE_SLUGS.has(p.provider_slug));
 const social = unique.filter(p => !MARKETPLACE_SLUGS.has(p.provider_slug));
-
 const providerCount = unique.length;
 
-// "A, B and C" from a list of names.
 function nameList(items) {
   const names = items.map(p => p.provider_name);
   if (names.length <= 1) return names[0] ?? "";
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
-
 const socialNames = nameList(social);
 const marketplaceNames = nameList(marketplaces);
 ---
 
-<Layout title="About — RTFP" description="What RTFP is, what it isn't, and how the numbers reconcile against the providers' own filings.">
+<Layout title="About — RTFP" description="What RTFP is, what it isn't, how the data is built, and how every number reconciles against the providers' own published filings.">
   <h2>About</h2>
   <p>
-    RTFP is a cross-platform comparison of the largest platforms'
-    EU Digital Services Act transparency reports. We load the
-    platforms' published filings into a normalised database and expose
-    the comparisons that no individual provider reports themselves.
+    RTFP — Read The Fine Print — is a cross-platform comparison of the
+    largest platforms' EU Digital Services Act transparency reports. We load
+    each platform's published filing into one normalised database and surface the
+    comparisons that no one provider reports alone. It is run
+    independently and is not commercial.
   </p>
 
   <h3>Why now</h3>
   <p>
-    The DSA has required VLOPs (and VLOSEs) to publish transparency
-    reports twice a year since August 2023. For the first two years, every
-    platform reported in its own format. Comparison was nearly impossible.
-    From the H2 2025 reporting cycle (published February 2026), all platforms
+    The DSA has required the largest platforms to publish transparency reports
+    twice a year since 2023. For the first two years, each platform reported in
+    its own format, with its own categories and its own definitions, so
+    comparison across platforms was close to impossible. From the H2 2025
+    reporting cycle — the filings published in February 2026 — every platform
     must use the harmonised template defined by Commission Implementing
-    Regulation 2024/2835. This is the first time the data can be
-    compared directly.
+    Regulation (EU) 2024/2835 of 4 November 2024. For the first time, the same
+    questions are answered by every platform in the same shape, and the numbers
+    can be set side by side. RTFP exists to do exactly that.
+  </p>
+  <p>
+    Lists of where these reports live already exist — the Commission publishes
+    one, and so do others. What none of them does is make the data itself
+    queryable. RTFP loads the filings, normalises them, and opens the result up
+    for anyone to read, compare, and check.
   </p>
 
   <h3>What's covered</h3>
   <p>
-    The dataset currently covers the H2 2025 filings of {providerCount}
-    platforms{social.length > 0 && marketplaces.length > 0 ? ", across two groups" : ""}.
+    The dataset currently holds the H2 2025 filings of {providerCount}
+    platforms{social.length > 0 && marketplaces.length > 0 ? ", in two groups" : ""}.
   </p>
   {social.length > 0 && (
-    <p>
-      <strong>Social platforms:</strong> {socialNames}.
-    </p>
+    <p><strong>Social platforms:</strong> {socialNames}.</p>
   )}
   {marketplaces.length > 0 && (
-    <p>
-      <strong>Marketplaces:</strong> {marketplaceNames}.
-    </p>
+    <p><strong>Marketplaces:</strong> {marketplaceNames}.</p>
   )}
   <p>
-    The dataset will grow over time as new reports are filed.  This is currently in a trial phase, and we 
-    continue to work on growing the dataset to include the filings of all the 
-    largest platforms. Also, the next reporting cycle covering H1 2026 is due in 
-    August 2026, and any amendments to past filings will also be added as soon as we can.
-    Please note that the "social platforms" and "marketplaces" terminology are our own, 
-    based on general usage.
+    The "social platforms" and "marketplaces" labels are our own shorthand,
+    based on general usage rather than any category in the regulation. The
+    dataset will grow: this is a trial phase, and we are still working towards
+    covering the filings of all the largest platforms. The next cycle, covering
+    H1 2026, is due in August 2026, and any amendments to past filings will be
+    added as soon as we can.
+  </p>
+  <p>
+    ! Reader beware: "Lies, damned lies, and statistics". Data in the same style or format 
+    don't mean we're all playing the same sport. Standardised data can still lie perfectly 
+    in unison. For example, just because two numbers sit in the same column header 
+    now doesn't mean different platforms measured them the exact same way. A spike 
+    in a number on one platform might look "worse" than Platform B, but it could 
+    very well be a reflection of a different user base or more aggressive internal 
+    reporting and operational realities or mechanisms. Exercise statistical caution.
+  </p>
+  
+  <h3>How the data is built</h3>
+  <p>
+    Each platform publishes its H2 2025 report as a bundle of CSV files laid out
+    according to Annex II of the Implementing Regulation. We load those files as
+    filed, preserving the original figures, and link every row back to the
+    specific filing it came from — which platform, which reporting period, which
+    publication date and version. Nothing is recomputed. Every number traces to a 
+    cell in a published CSV.
+  </p>
+  <p>
+    "Harmonised" turns out to mean templated rather than uniform. Platforms fill
+    the same template differently: some leave whole sections blank, some invent
+    sub-categories the template doesn't define, some report the same country or
+    language under different codes. Where it is needed to make platforms
+    comparable, we normalise these surface differences — for example, Greece is
+    reported as both GR and EL across platforms, and a few platforms write a
+    country code where a language code is expected. These normalisations are
+    applied transparently in database views, and the underlying raw figures are
+    never overwritten. Anything a platform reported that doesn't fit the
+    template is recorded as a data-quality observation rather than quietly
+    dropped.
   </p>
 
   <h3>What this is not</h3>
   <p>
-    This is not an audit. Every number on the site is what each
-    platform self-reported. Where platforms disagree on methodology — and they
-    do — that's surfaced as a finding only. Remember, garbage in, garbage out.
+    This is not an audit. Every number on the site is what a platform reported
+    about itself. Where platforms disagree on methodology — and they do — that
+    disagreement is surfaced as a finding, not resolved. Garbage in, garbage
+    out: if a platform's filing is wrong, RTFP will faithfully show you the
+    wrong number, traced back to where it came from.
   </p>
   <p>
-    This site does not include data from the EU's Statements of Reasons
-    database (which is a separate dataset covering individual moderation
-    decisions). It covers only the quantitative templates filed under Articles
-    15 and 24 of the DSA, and the qualitative narrative sections under Article 42.
+    RTFP does not include the EU's Statements of Reasons database, which is a
+    separate dataset covering individual moderation decisions. It covers the
+    quantitative templates filed under Articles 15 and 24 of the DSA, and the
+    qualitative narrative sections under Article 42.
+  </p>
+  <p>
+    RTFP only loads the csv files corresponding to #1 to #11. Some platforms publish 
+    a conslidated csv (or spreadsheet), and others also include separate reporting in prose, 
+    such as a written report. We do not include those other files here - for now.
   </p>
 
   <h3>How the numbers reconcile</h3>
   <p>
-    Each finding on the site links to the underlying database view. Every view
-    is publicly queryable via the <a href="/api">REST API</a>. Every filing the
-    site draws from is linked on the <a href="/sources">Sources</a> page so the
-    numbers can be checked against the providers' own published reports.
+    Every finding links to the database view behind it. Every view is publicly
+    queryable — without writing any code on the <a href="/explore">explore</a>
+    page, or directly via the <a href="/api">API</a>. And every filing the
+    site draws from is listed on the <a href="/sources">sources</a> page, linked
+    to the provider's own published report, so any number here can be checked
+    against the original. If a figure on RTFP ever disagrees with a provider's
+    filing, the provider's filing wins — please tell us and we'll correct it.
+  </p>
+
+  <h3>Finding your way around</h3>
+  <p>
+    The <a href="/findings">findings</a> are the comparisons worth knowing. The
+    <a href="/data">platforms</a> pages show the full filing for any one
+    platform. The <a href="/explore">explore</a> page lets you query the whole
+    database yourself. <a href="/sources">Sources</a> traces everything back to
+    the originals, and the <a href="/api">API</a> is for anyone who wants the
+    data as data.
   </p>
 
   <h3>Who built this</h3>
   <p>
-    RTFP is built by Oscar (<a href="https://github.com/pushkinoxt">@pushkinoxt</a>) and Sune (at).
+    RTFP is built by Oscar (<a href="https://github.com/pushkinoxt">@pushkinoxt</a>)
+    and Sune.
   </p>
+
+  <slot name="footer" slot="footer">
+    <p>An independent, non-commercial comparison built from platforms' self-reported DSA filings. Not an audit.</p>
+    <p>Found an error? <a href="https://github.com/pushkinoxt/rtfp/issues">Open an issue</a>.</p>
+  </slot>
 </Layout>

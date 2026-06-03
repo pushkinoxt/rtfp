@@ -20,6 +20,14 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", {
     transparency filings under the Digital Services Act. Each filing is linked
     below in its canonical location on the provider's own website.
   </p>
+  <p>
+    Every platform here is a Very Large Online Platform (VLOP) designated by the
+    European Commission. The Commission maintains the official, authoritative
+    register of designated VLOPs and VLOSEs, which is the canonical reference
+    for who is in scope:
+    <a href="https://digital-strategy.ec.europa.eu/en/policies/list-designated-vlops-and-vloses" rel="noopener noreferrer">the
+    Commission's designated-platforms list</a>.
+  </p>
 
   {filings.map((f) => (
     <article class="filing">
