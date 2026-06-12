@@ -3,14 +3,32 @@
 import Layout from "../layouts/Layout.astro";
 import { fetchFromSupabase } from "../lib/supabase.js";
 
-const filings = await fetchFromSupabase("filings_overview", {
-  select: "provider_slug,provider_name,period_label,original_published_on,this_version_published_on,version_number,report_url",
-  order: "provider_name.asc",
-});
+const [allFilings, overview] = await Promise.all([
+  fetchFromSupabase("filings_overview", {
+    select: "provider_slug,provider_name,period_label,original_published_on,this_version_published_on,version_number,report_url,filing_slug",
+    order: "provider_name.asc,version_number.asc",
+  }),
+  fetchFromSupabase("provider_overview", {
+    select: "provider_slug,service_category",
+  }),
+]);
+
+// slug -> service_category, used to flag adult-content destinations.
+const categoryBySlug = Object.fromEntries(
+  overview.map((p) => [p.provider_slug, p.service_category])
+);
+
+// Drop the separate advertising-service filings (slug suffix /ads): they share
+// the provider's main report URL, so listing them as their own source entry is
+// redundant. The original and restated versions of a filing are both kept.
+const filings = allFilings.filter((f) => !(f.filing_slug || "").endsWith("/ads"));
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", {
   year: "numeric", month: "long", day: "numeric"
 }) : "—";
+
+const downloadsAFile = (url) => /\.(zip|xls|xlsx)$/i.test(url || "");
+const isAdult = (slug) => categoryBySlug[slug] === "Adult content";
 ---
 
 <Layout title="Sources — RTFP" description="Source filings for every number on RTFP, linked to the providers' own published reports.">
@@ -31,7 +49,10 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", {
 
   {filings.map((f) => (
     <article class="filing">
-      <h3>{f.provider_name}</h3>
+      <h3>
+        {f.provider_name}
+        {f.version_number > 1 && <span class="badge">Restated</span>}
+      </h3>
       <p class="meta">
         <strong>Period:</strong> {f.period_label} —
         <strong>Originally published:</strong> {fmtDate(f.original_published_on)} —
@@ -41,7 +62,11 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", {
       <p class="links">
         <a href={`/data/${f.provider_slug}`}>View RTFP data →</a>
         {f.report_url && (
-          <a href={f.report_url} rel="noopener noreferrer">Provider's original filing →</a>
+          <span class="ext">
+            <a href={f.report_url} rel="noopener noreferrer">Provider's original filing →</a>
+            {downloadsAFile(f.report_url) && <span class="note">(downloads a file)</span>}
+            {isAdult(f.provider_slug) && <span class="warn">(adult-content site)</span>}
+          </span>
         )}
       </p>
     </article>
@@ -61,8 +86,21 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", {
     margin-bottom: 1rem;
   }
   .filing h3 { margin: 0 0 0.5rem !important; font-size: 1.2rem; }
+  .filing .badge {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--ink-faint);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    vertical-align: middle;
+  }
   .filing .meta { font-size: 0.9rem; margin: 0 0 0.5rem; }
   .filing .meta strong { color: var(--ink); font-weight: 500; }
-  .filing .pending { color: var(--ink-faint); font-style: italic; }
-  .filing .links { display: flex; gap: 1.5rem; flex-wrap: wrap; margin: 0; font-size: 0.9rem; }
+  .filing .links { display: flex; gap: 1.5rem; flex-wrap: wrap; margin: 0; font-size: 0.9rem; align-items: baseline; }
+  .filing .ext { display: inline-flex; gap: 0.5rem; flex-wrap: wrap; align-items: baseline; }
+  .filing .note { color: var(--ink-faint); font-size: 0.8rem; }
+  .filing .warn { color: var(--ink-faint); font-size: 0.8rem; }
 </style>

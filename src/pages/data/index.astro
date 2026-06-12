@@ -1,7 +1,7 @@
 ---
 // src/pages/data/index.astro
 // Landing page for the per-provider data pages. Lists every provider,
-// grouped by type, linking to /data/<slug>.
+// grouped by its service category, linking to /data/<slug>.
 
 import Layout from "../../layouts/Layout.astro";
 import { fetchFromSupabase } from "../../lib/supabase.js";
@@ -11,7 +11,8 @@ const providers = await fetchFromSupabase("provider_overview", {
   order: "provider_name.asc",
 });
 
-// De-duplicate (provider_overview is one row per filing) and attach type.
+// provider_overview is now one row per provider (main current service), but keep
+// a de-dupe guard so this can't break if that ever changes.
 const seen = new Set();
 const unique = [];
 for (const p of providers) {
@@ -20,15 +21,34 @@ for (const p of providers) {
   unique.push(p);
 }
 
-// Split social vs marketplace. We don't have provider_type in this view, so
-// classify by the known marketplace slugs; everything else is social.
-const MARKETPLACE_SLUGS = new Set([
-  "amazon-store", "zalando", "aliexpress", "shein", "temu",
-]);
-const marketplaces = unique.filter(p => MARKETPLACE_SLUGS.has(p.provider_slug));
-const social = unique.filter(p => !MARKETPLACE_SLUGS.has(p.provider_slug));
+// Group by the provider's own service category, taken from the data rather than
+// hardcoded, so App store, Knowledge, Travel and Adult content sit in the right
+// place automatically and any future category still renders.
+const groups = new Map();
+for (const p of unique) {
+  const cat = p.service_category || "Other";
+  if (!groups.has(cat)) groups.set(cat, []);
+  groups.get(cat).push(p);
+}
 
-const fmt = (n) => n == null ? "—" : Number(n).toLocaleString("en-GB");
+// Preferred display order for the familiar categories; anything not listed falls
+// to the end alphabetically. (If a heading lands in the wrong place, the exact
+// service_category string differs from the guess below — adjust PREFERRED.)
+const PREFERRED = [
+  "Social media", "Video sharing", "Professional network",
+  "Marketplace", "App store", "Travel", "Knowledge",
+  "Adult content", "Other",
+];
+const orderedCategories = [...groups.keys()].sort((a, b) => {
+  const ia = PREFERRED.indexOf(a);
+  const ib = PREFERRED.indexOf(b);
+  if (ia !== -1 && ib !== -1) return ia - ib;
+  if (ia !== -1) return -1;
+  if (ib !== -1) return 1;
+  return a.localeCompare(b);
+});
+
+const fmt = (n) => (n == null ? null : Number(n).toLocaleString("en-GB"));
 ---
 
 <Layout title="Platforms — RTFP" description="Browse the full H2 2025 DSA transparency data for each of the platforms RTFP covers.">
@@ -39,36 +59,32 @@ const fmt = (n) => n == null ? "—" : Number(n).toLocaleString("en-GB");
     own-initiative moderation, account actions and reporting metadata.
   </p>
 
-  <h3>Social platforms</h3>
-  <ul class="provider-list">
-    {social.map(p => (
-      <li>
-        <a href={`/data/${p.provider_slug}`}>
-          <span class="name">{p.provider_name}</span>
-          <span class="amar">{fmt(p.amar_eu_total)} EU users</span>
-        </a>
-      </li>
-    ))}
-  </ul>
-
-  <h3>Marketplaces</h3>
-  <ul class="provider-list">
-    {marketplaces.map(p => (
-      <li>
-        <a href={`/data/${p.provider_slug}`}>
-          <span class="name">{p.provider_name}</span>
-          <span class="amar">{fmt(p.amar_eu_total)} EU users</span>
-        </a>
-      </li>
-    ))}
-  </ul>
+  {orderedCategories.map((cat) => (
+    <section class="category">
+      <h3>{cat}</h3>
+      <ul class="provider-list">
+        {groups.get(cat).map((p) => (
+          <li>
+            <a href={`/data/${p.provider_slug}`}>
+              <span class="name">{p.provider_name}</span>
+              {fmt(p.amar_eu_total) && (
+                <span class="amar">{fmt(p.amar_eu_total)} EU users</span>
+              )}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
 </Layout>
 
 <style>
+  .category { margin-bottom: 2rem; }
+  .category h3 { margin-bottom: 0.75rem; }
   .provider-list {
     list-style: none;
     padding: 0;
-    margin: 0 0 2rem;
+    margin: 0;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
