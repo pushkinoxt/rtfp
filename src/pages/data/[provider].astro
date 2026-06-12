@@ -56,8 +56,12 @@ const [
   }),
 ]);
 
-const filing = filingRows[0] ?? {};
 const overview = overviewRows[0] ?? {};
+// Pin the filing row to the same (current, primary) filing that overview and the
+// analytical sections use, so the header can't drift to a superseded version or
+// an ad service when filings_overview returns more than one row for this provider.
+const filing =
+  filingRows.find((f) => f.filing_id === overview.filing_id) ?? filingRows[0] ?? {};
 
 const providerName = overview.provider_name ?? filing.provider_name ?? provider;
 const legalEntity = overview.legal_entity ?? filing.legal_entity ?? "—";
@@ -68,8 +72,10 @@ const fmt = (n) =>
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" }) : "—";
 
-// Amazon-only restatement note (Amazon's loaded figures are pre-restatement).
-const isAmazonStore = provider === "amazon-store";
+// Restatement note: fires for any filing that is a later version (Amazon, Snap),
+// and now correctly states these are the restated figures, since the views point
+// at the current version.
+const isRestated = (filing.version_number ?? 1) > 1;
 
 // --- AMAR display: official total, designation floor, or per-country aggregate ---
 const amarFloorMatch = (overview.amar_eu_total_raw || "").match(/^\s*>\s*([\d.,]+)/);
@@ -149,7 +155,7 @@ function chartMax(rows) {
 ---
 
 <Layout title={title} description={description}>
-  <p class="breadcrumb"><a href="/sources">← All filings</a></p>
+  <p class="breadcrumb"><a href="/data">← All platforms</a></p>
 
   <h2>{providerName}</h2>
   <p class="entity">{legalEntity}</p>
@@ -181,11 +187,13 @@ function chartMax(rows) {
     <div><dt>Established in</dt><dd>{overview.country_of_establishment ?? "—"}</dd></div>
   </dl>
 
-  {isAmazonStore && (
+  {isRestated && (
     <p class="restatement-note">
-      Note: the figures below are Amazon Store's H2 2025 report as originally
-      filed in February 2026. Amazon published restated figures in April 2026
-      that are substantially higher. A cross-version comparison is planned.
+      These are {providerName}'s restated H2 2025 figures (version {filing.version_number},
+      published {fmtDate(filing.this_version_published_on)}), which supersede an
+      earlier version published {fmtDate(filing.original_published_on)}. Both
+      versions are listed on the <a href="/sources">sources page</a>, and a
+      side-by-side comparison of the two is planned.
     </p>
   )}
 
