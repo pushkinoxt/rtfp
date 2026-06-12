@@ -7,7 +7,7 @@ import Layout from "../../layouts/Layout.astro";
 import { fetchFromSupabase } from "../../lib/supabase.js";
 
 const providers = await fetchFromSupabase("provider_overview", {
-  select: "provider_slug,provider_name,service_category,amar_eu_total",
+  select: "provider_slug,provider_name,service_category,amar_eu_total,amar_eu_total_raw,amar_signed_in_eu_sum,amar_signed_out_eu_sum",
   order: "provider_name.asc",
 });
 
@@ -49,6 +49,21 @@ const orderedCategories = [...groups.keys()].sort((a, b) => {
 });
 
 const fmt = (n) => (n == null ? null : Number(n).toLocaleString("en-GB"));
+
+// AMAR display: official total, designation floor ("> 45" million), or, for the
+// Google services, RTFP's per-country sums of signed-in / signed-out (labelled).
+function amarLines(p) {
+  if (p.amar_eu_total != null) return { lines: [`${fmt(p.amar_eu_total)} EU users`], agg: false };
+  const m = (p.amar_eu_total_raw || "").match(/^\s*>\s*([\d.,]+)/);
+  if (m) return { lines: [`More than ${m[1].replace(/,/g, "")} million EU users`], agg: false };
+  const lines = [];
+  if (p.amar_signed_in_eu_sum != null)  lines.push(`≈${fmt(p.amar_signed_in_eu_sum)} signed-in*`);
+  if (p.amar_signed_out_eu_sum != null) lines.push(`≈${fmt(p.amar_signed_out_eu_sum)} signed-out*`);
+  return lines.length ? { lines, agg: true } : null;
+}
+const hasAggregate = unique.some(
+  (p) => p.amar_signed_in_eu_sum != null || p.amar_signed_out_eu_sum != null
+);
 ---
 
 <Layout title="Platforms — RTFP" description="Browse the full H2 2025 DSA transparency data for each of the platforms RTFP covers.">
@@ -67,15 +82,30 @@ const fmt = (n) => (n == null ? null : Number(n).toLocaleString("en-GB"));
           <li>
             <a href={`/data/${p.provider_slug}`}>
               <span class="name">{p.provider_name}</span>
-              {fmt(p.amar_eu_total) && (
-                <span class="amar">{fmt(p.amar_eu_total)} EU users</span>
-              )}
+              {(() => {
+                const a = amarLines(p);
+                if (!a) return null;
+                return (
+                  <span class={a.agg ? "amar amar-agg" : "amar"}>
+                    {a.lines.map((line) => <span>{line}</span>)}
+                  </span>
+                );
+              })()}
             </a>
           </li>
         ))}
       </ul>
     </section>
   ))}
+
+  {hasAggregate && (
+    <p class="amar-note">
+      * No single EU total is published for these. The figure shown is RTFP's sum
+      of the per-country counts the provider reported, with signed-in accounts and
+      signed-out sessions kept separate (they measure different things and are not
+      added together). See the platform's page for the full per-country breakdown.
+    </p>
+  )}
 </Layout>
 
 <style>
@@ -104,4 +134,6 @@ const fmt = (n) => (n == null ? null : Number(n).toLocaleString("en-GB"));
   .provider-list a:hover { border-color: var(--ink-faint); }
   .provider-list .name { font-weight: 600; color: var(--ink); }
   .provider-list .amar { font-size: 0.8rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .provider-list .amar-agg { display: flex; flex-direction: column; align-items: flex-end; gap: 0.1rem; text-align: right; }
+  .amar-note { font-size: 0.8rem; color: var(--ink-faint); margin-top: 1.5rem; max-width: 70ch; line-height: 1.5; }
 </style>

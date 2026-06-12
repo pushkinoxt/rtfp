@@ -8,11 +8,11 @@ import Layout from "../layouts/Layout.astro";
 import { fetchFromSupabase } from "../lib/supabase.js";
 
 const providers = await fetchFromSupabase("provider_overview", {
-  select: "provider_slug,provider_name",
+  select: "provider_slug,provider_name,service_category",
   order: "provider_name.asc",
 });
 
-// De-duplicate (provider_overview is one row per filing).
+// De-duplicate (provider_overview is one row per provider, but guard anyway).
 const seen = new Set();
 const unique = [];
 for (const p of providers) {
@@ -20,21 +20,35 @@ for (const p of providers) {
   seen.add(p.provider_slug);
   unique.push(p);
 }
-
-const MARKETPLACE_SLUGS = new Set([
-  "amazon-store", "zalando", "aliexpress", "shein", "temu",
-]);
-const marketplaces = unique.filter(p => MARKETPLACE_SLUGS.has(p.provider_slug));
-const social = unique.filter(p => !MARKETPLACE_SLUGS.has(p.provider_slug));
 const providerCount = unique.length;
+
+// Group by the provider's own service category, taken from the data.
+const groups = new Map();
+for (const p of unique) {
+  const cat = p.service_category || "Other";
+  if (!groups.has(cat)) groups.set(cat, []);
+  groups.get(cat).push(p);
+}
+
+const PREFERRED = [
+  "Social media", "Video sharing", "Professional network",
+  "Marketplace", "App store", "Travel", "Knowledge",
+  "Adult content", "Other",
+];
+const orderedCategories = [...groups.keys()].sort((a, b) => {
+  const ia = PREFERRED.indexOf(a);
+  const ib = PREFERRED.indexOf(b);
+  if (ia !== -1 && ib !== -1) return ia - ib;
+  if (ia !== -1) return -1;
+  if (ib !== -1) return 1;
+  return a.localeCompare(b);
+});
 
 function nameList(items) {
   const names = items.map(p => p.provider_name);
   if (names.length <= 1) return names[0] ?? "";
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
-const socialNames = nameList(social);
-const marketplaceNames = nameList(marketplaces);
 ---
 
 <Layout title="About - RTFP" description="What RTFP is, what it isn't, how the data is built, and how every number reconciles against the providers' own published filings.">
@@ -43,7 +57,7 @@ const marketplaceNames = nameList(marketplaces);
     RTFP - Read The Fine Print - is a cross-platform comparison of the
     largest platforms' EU Digital Services Act transparency reports. We load
     each platform's published filing into one normalised database and surface the
-    comparisons that no one provider reports alone. It is run
+    comparisons that no one provider reports alone. RTFP is run
     independently and is not commercial.
   </p>
 
@@ -55,9 +69,11 @@ const marketplaceNames = nameList(marketplaces);
     comparison across platforms was close to impossible. From the H2 2025
     reporting cycle - the filings published in February 2026 - every platform
     must use the harmonised template defined by Commission Implementing
-    Regulation (EU) 2024/2835 of 4 November 2024. For the first time, the same
-    questions are answered by every platform in the same shape, and the numbers
-    can be set side by side. RTFP exists to do exactly that.
+    Regulation (EU) 2024/2835 of 4 November 2024. For the first time, every 
+    platform is required to answer the same questions in the same template. 
+    That does not guarantee they interpreted the questions identically, but 
+    it gets everyone onto the same starting line. RTFP exists to do exactly that - 
+    which we'd thought was kind of the point of the regulations.
   </p>
   <p>
     Lists of where these reports live already exist - the Commission publishes
@@ -65,34 +81,40 @@ const marketplaceNames = nameList(marketplaces);
     queryable. RTFP loads the filings, normalises them, and opens the result up
     for anyone to read, compare, and check.
   </p>
+  <p>
+    Every chart on this site is downstream of somebody else's spreadsheet.
+  </p>
 
   <h3>What's covered</h3>
   <p>
     The dataset currently holds the H2 2025 filings of {providerCount}
-    platforms{social.length > 0 && marketplaces.length > 0 ? ", in two groups" : ""}.
+    platforms, specifically the VLOPs, grouped below by the kind of service they provide.
   </p>
-  {social.length > 0 && (
-    <p><strong>Social platforms:</strong> {socialNames}.</p>
-  )}
-  {marketplaces.length > 0 && (
-    <p><strong>Marketplaces:</strong> {marketplaceNames}.</p>
-  )}
+  {orderedCategories.map((cat) => (
+    <p><strong>{cat}:</strong> {nameList(groups.get(cat))}.</p>
+  ))}
   <p>
-    The "social platforms" and "marketplaces" labels are our own shorthand,
-    based on general usage rather than any category in the regulation. The
-    dataset will grow: this is a trial phase, and we are still working towards
-    covering the filings of all the largest platforms. The next cycle, covering
-    H1 2026, is due in August 2026, and any amendments to past filings will be
-    added as soon as we can.
+    The category labels are our own grouping, based on general usage rather than
+    any category in the regulation. The dataset will grow: this is a trial phase,
+    and we are still working towards covering the filings of all the largest
+    platforms. The next cycle, covering H1 2026, is due in August 2026, and any
+    amendments to past filings will be added as soon as we can.
+  </p>
+  
+  <h3>A word of caution on data and comparability</h3>
+  <p>
+    Reader beware: "Lies, damned lies, and statistics". The regulations got 
+    everyone onto the same formats, but standardisation is not the same thing as comparability. 
+    The platforms are now using the same form, but that does not mean they 
+    measured everything in exactly the same way. Sometimes two numbers appear under the 
+    same column heading because they belong there. Sometimes they appear under the same 
+    column heading because everyone was told to put them there. 
   </p>
   <p>
-    ! Reader beware: "Lies, damned lies, and statistics". Data in the same style or format 
-    don't mean we're all playing the same sport. Standardised data can still lie perfectly 
-    in unison. For example, just because two numbers sit in the same column header 
-    now doesn't mean different platforms measured them the exact same way. A spike 
-    in a number on one platform might look "worse" than Platform B, but it could 
-    very well be a reflection of a different user base or more aggressive internal 
-    reporting and operational realities or mechanisms. Exercise statistical caution.
+    A spike in one platform's figures is not automatically evidence that it is doing better, 
+    worse, more, less, or anything in particular. It may reflect a different user base, 
+    different internal processes, different definitions, or simply a different interpretation 
+    of the reporting instructions. Exercise statistical caution.
   </p>
   
   <h3>How the data is built</h3>
@@ -105,26 +127,27 @@ const marketplaceNames = nameList(marketplaces);
     cell in a published CSV.
   </p>
   <p>
-    "Harmonised" turns out to mean templated rather than uniform. Platforms fill
-    the same template differently: some leave whole sections blank, some invent
-    sub-categories the template doesn't define, some report the same country or
-    language under different codes. Where it is needed to make platforms
+    "Harmonised" turns out to mean "using the same form" rather than "doing the same thing". 
+    Platforms fill the same template differently: some leave whole sections blank, 
+    some invent sub-categories the template doesn't define, some report the same 
+    country or language under different codes. Where it is needed to make platforms
     comparable, we normalise these surface differences - for example, Greece is
     reported as both GR and EL across platforms, and a few platforms write a
     country code where a language code is expected. These normalisations are
     applied transparently in database views, and the underlying raw figures are
-    never overwritten. Anything a platform reported that doesn't fit the
-    template is recorded as a data-quality observation rather than quietly
-    dropped.
+    never overwritten. Anything that does not fit neatly into the template is 
+    recorded as a data-quality observation rather than swept under the rug. 
+    The rug is already crowded enough.
   </p>
 
   <h3>What this is not</h3>
   <p>
     This is not an audit. Every number on the site is what a platform reported
     about itself. Where platforms disagree on methodology - and they do - that
-    disagreement is surfaced as a finding, not resolved. Garbage in, garbage
-    out: if a platform's filing is wrong, RTFP will faithfully show you the
-    wrong number, traced back to where it came from.
+    disagreement is surfaced as a finding, not resolved. Every number on the site 
+    is a number that a platform reported about itself. If a filing contains an 
+    error, we will faithfully preserve that error and point back to where it came 
+    from. We are custodians of the numbers, not their parents.
   </p>
   <p>
     RTFP does not include the EU's Statements of Reasons database, which is a
@@ -133,9 +156,10 @@ const marketplaceNames = nameList(marketplaces);
     qualitative narrative sections under Article 42.
   </p>
   <p>
-    RTFP only loads the csv files corresponding to #1 to #11. Some platforms publish 
-    a conslidated csv (or spreadsheet), and others also include separate reporting in prose, 
-    such as a written report. We do not include those other files here - for now.
+    We currently load only the CSV templates corresponding to Tables 1–11. 
+    Some providers also publish consolidated spreadsheets, written reports, 
+    appendices, and other supporting material. Those may contain useful context. 
+    They may also contain surprises. For now, we stick to the tables.
   </p>
 
   <h3>How the numbers reconcile</h3>
@@ -145,8 +169,8 @@ const marketplaceNames = nameList(marketplaces);
     page, or directly via the <a href="/api">API</a>. And every filing the
     site draws from is listed on the <a href="/sources">sources</a> page, linked
     to the provider's own published report, so any number here can be checked
-    against the original. If a figure on RTFP ever disagrees with a provider's
-    filing, the provider's filing wins - please tell us and we'll correct it.
+    against the original. If a figure on RTFP disagrees with a provider's filing, 
+    assume the filing is right and we are wrong. Let us know and we'll fix it.
   </p>
 
   <h3>Finding your way around</h3>
@@ -161,7 +185,7 @@ const marketplaceNames = nameList(marketplaces);
   <h3>Who built this</h3>
   <p>
     RTFP is built by Oscar (<a href="https://github.com/pushkinoxt">@pushkinoxt</a>)
-    and Sune.
+    and Sune. Mostly with SQL, tea, and an unhealthy familiarity with csv files.
   </p>
 
   <slot name="footer" slot="footer">

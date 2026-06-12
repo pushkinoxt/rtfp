@@ -71,6 +71,32 @@ const fmtDate = (d) =>
 // Amazon-only restatement note (Amazon's loaded figures are pre-restatement).
 const isAmazonStore = provider === "amazon-store";
 
+// --- AMAR display: official total, designation floor, or per-country aggregate ---
+const amarFloorMatch = (overview.amar_eu_total_raw || "").match(/^\s*>\s*([\d.,]+)/);
+const amarFloorMillions = amarFloorMatch ? amarFloorMatch[1].replace(/,/g, "") : null;
+const amarHasAggregate =
+  overview.amar_signed_in_eu_sum != null || overview.amar_signed_out_eu_sum != null;
+
+// For the aggregate (Google-style) providers, pull the per-country breakdown.
+const amarByCountry = amarHasAggregate
+  ? await fetchFromSupabase("amar_by_country", {
+      filters: { provider_slug: eqProvider },
+      order: "country_name.asc",
+    })
+  : [];
+const amarCountryMap = new Map();
+for (const r of amarByCountry) {
+  if (!amarCountryMap.has(r.country_code)) {
+    amarCountryMap.set(r.country_code, {
+      country: r.country_name ?? r.country_code, signedIn: null, signedOut: null,
+    });
+  }
+  const row = amarCountryMap.get(r.country_code);
+  if (r.measure === "signed-in accounts") row.signedIn = r.amar;
+  else if (r.measure === "signed-out sessions") row.signedOut = r.amar;
+}
+const amarCountryRows = [...amarCountryMap.values()];
+
 // --- Helpers for the small inline SVG bar charts ---
 // Each chart takes [{label, value}] and renders a horizontal bar chart.
 function topRows(rows, valueKey, n = 8) {
@@ -131,7 +157,25 @@ function chartMax(rows) {
   <dl class="meta">
     <div><dt>Reporting period</dt><dd>{fmtDate(filing.period_start)} – {fmtDate(filing.period_end)}</dd></div>
     <div><dt>Published</dt><dd>{fmtDate(filing.this_version_published_on)}</dd></div>
-    <div><dt>EU average monthly active recipients</dt><dd>{fmt(overview.amar_eu_total)}</dd></div>
+    <div>
+      <dt>EU average monthly active recipients</dt>
+      <dd>
+        {overview.amar_eu_total != null ? (
+          fmt(overview.amar_eu_total)
+        ) : amarFloorMillions != null ? (
+          `More than ${amarFloorMillions} million`
+        ) : amarHasAggregate ? (
+          <span class="amar-agg">
+            {overview.amar_signed_in_eu_sum != null && (
+              <span>≈{fmt(overview.amar_signed_in_eu_sum)} signed-in accounts*</span>
+            )}
+            {overview.amar_signed_out_eu_sum != null && (
+              <span>≈{fmt(overview.amar_signed_out_eu_sum)} signed-out sessions*</span>
+            )}
+          </span>
+        ) : "—"}
+      </dd>
+    </div>
     <div><dt>Service category</dt><dd>{overview.service_category ?? "—"}</dd></div>
     <div><dt>Designated</dt><dd>{fmtDate(overview.designated_on)}</dd></div>
     <div><dt>Established in</dt><dd>{overview.country_of_establishment ?? "—"}</dd></div>
@@ -143,6 +187,36 @@ function chartMax(rows) {
       filed in February 2026. Amazon published restated figures in April 2026
       that are substantially higher. A cross-version comparison is planned.
     </p>
+  )}
+
+  {amarHasAggregate && (
+    <section class="data-section">
+      <h3>Average monthly active recipients, by Member State</h3>
+      <p class="article-ref">Article 24(2)</p>
+      <p class="amar-method">
+        {providerName} does not publish a single EU-wide figure. It reports
+        recipients per Member State, split into signed-in accounts and signed-out
+        sessions, and points to a consolidated PDF report for any total. The
+        figures marked "*" above are RTFP's own sums across the {overview.amar_country_count}
+        Member States listed here. Signed-in accounts and signed-out sessions
+        measure different things and are never added together, and neither sum is
+        an official figure {providerName} stated.
+      </p>
+      <table class="data-table amar-table">
+        <thead>
+          <tr><th>Member State</th><th>Signed-in accounts</th><th>Signed-out sessions</th></tr>
+        </thead>
+        <tbody>
+          {amarCountryRows.map((r) => (
+            <tr>
+              <td>{r.country}</td>
+              <td>{r.signedIn ?? "—"}</td>
+              <td>{r.signedOut ?? "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   )}
 
   <!-- Government orders -->
@@ -302,4 +376,9 @@ function chartMax(rows) {
   .data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
   .data-table th { text-align: left; font-weight: 500; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
   .data-table td { text-align: right; font-variant-numeric: tabular-nums; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+
+  .amar-agg { display: flex; flex-direction: column; gap: 0.1rem; font-weight: 600; }
+  .amar-method { font-size: 0.85rem; color: var(--ink-faint); margin: 0 0 1rem; max-width: 70ch; line-height: 1.5; }
+  .amar-table th { text-align: right; }
+  .amar-table th:first-child, .amar-table td:first-child { text-align: left; }
 </style>
