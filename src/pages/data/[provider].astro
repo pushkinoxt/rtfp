@@ -254,29 +254,6 @@ function chartMax(rows) {
     </section>
   )}
 
-  {noteBases.length > 0 && (
-    <section class="data-section notes-section">
-      <h3>Notes from {providerName}</h3>
-      <p class="section-intro">
-        Contextual notes {providerName} attached to its own figures in this
-        filing, shown verbatim.
-      </p>
-      {noteBases.map((basis) => (
-        <div class="note-group">
-          <h4>{basis}</h4>
-          <ul class="note-list">
-            {notesByBasis.get(basis).map((n) => (
-              <li>
-                <span class="note-field">{n.field_label}</span>
-                <span class="note-text">{n.note}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-    </section>
-  )}
-
   <!-- Government orders -->
   <section class="data-section">
     <h3>Government orders to act against illegal content</h3>
@@ -376,8 +353,11 @@ function chartMax(rows) {
     <section class="data-section">
       <h3>In {providerName}'s words</h3>
       <p class="section-intro">
-        {providerName}'s own narrative answers to the qualitative questions in the
-        DSA template (Article 42 / Annex I), shown verbatim. Expand each to read.
+        {providerName}'s long-form answers to the standard qualitative questions
+        every platform must answer (Article 42 of the DSA) — how it moderates
+        content, how it measures accuracy, how its teams are resourced. Its own
+        words; expand each to read. (Short notes pinned to individual figures are
+        under "Footnotes from {providerName}" below.)
       </p>
       {narratives.map((n) => (
         <details class="narrative">
@@ -399,13 +379,43 @@ function chartMax(rows) {
     </p>
   </section>
 
+  {noteBases.length > 0 && (
+    <section class="data-section notes-section">
+      <h3>Footnotes from {providerName}</h3>
+      <p class="section-intro">
+        Short notes {providerName} pinned to <em>specific figures</em> in its
+        filing — definitions, clarifications and corrections written against
+        individual numbers, shown verbatim. (For its longer descriptions of how it
+        moderates, see "In {providerName}'s words" above.)
+      </p>
+      <details class="notes-details">
+        <summary>Show {platformNotesRows.length} {platformNotesRows.length === 1 ? "note" : "notes"}</summary>
+        <div class="notes-body">
+          {noteBases.map((basis) => (
+            <div class="note-group">
+              <h4>{basis}</h4>
+              <ul class="note-list">
+                {notesByBasis.get(basis).map((n) => (
+                  <li>
+                    <span class="note-field">{n.field_label}</span>
+                    <span class="note-text">{n.note}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </details>
+    </section>
+  )}
+
   {caveatRows.length > 0 && (
     <section class="data-section caveats-section">
       <h3>RTFP notes</h3>
       <p class="section-intro">
         RTFP's own observations about comparability and data gaps for {providerName},
         not statements from {providerName}. Where {providerName} itself commented,
-        that appears under "Notes from {providerName}" above.
+        that appears under "Footnotes from {providerName}" above.
       </p>
       <ul class="caveat-list">
         {caveatRows.map((c) => (
@@ -484,6 +494,9 @@ function chartMax(rows) {
   .note-list li { display: flex; flex-direction: column; gap: 0.15rem; padding-left: 0.75rem; border-left: 2px solid var(--border); }
   .note-field { font-size: 0.8rem; font-weight: 600; color: var(--ink); }
   .note-text { font-size: 0.9rem; color: var(--ink); line-height: 1.5; }
+  .notes-details > summary { cursor: pointer; font-size: 0.9rem; font-weight: 500; color: var(--ink); padding: 0.4rem 0; }
+  .notes-details > summary:hover { color: var(--ink-faint); }
+  .notes-body { padding-top: 1rem; }
 
   /* Platform narratives */
   .narrative { background: white; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.5rem; }
