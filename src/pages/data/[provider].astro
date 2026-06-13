@@ -34,6 +34,8 @@ const [
   moderationVolume,
   automationRows,
   accountActionsRows,
+  platformNotesRows,
+  caveatRows,
 ] = await Promise.all([
   fetchFromSupabase("filings_overview", { filters: { provider_slug: eqProvider } }),
   fetchFromSupabase("provider_overview", { filters: { provider_slug: eqProvider } }),
@@ -53,6 +55,14 @@ const [
   }),
   fetchFromSupabase("account_actions_summary", {
     filters: { provider_slug: eqProvider },
+  }),
+  fetchFromSupabase("platform_notes", {
+    filters: { provider_slug: eqProvider },
+    order: "basis.asc,field_label.asc",
+  }),
+  fetchFromSupabase("provider_caveats", {
+    filters: { provider_slug: eqProvider },
+    order: "sort_order.asc",
   }),
 ]);
 
@@ -102,6 +112,23 @@ for (const r of amarByCountry) {
   else if (r.measure === "signed-out sessions") row.signedOut = r.amar;
 }
 const amarCountryRows = [...amarCountryMap.values()];
+
+// Platform's own narrative answers (Article 42 / Annex I), for the current filing.
+const narrativeRows = overview.filing_id
+  ? await fetchFromSupabase("qualitative_indicators", {
+      filters: { filing_id: `eq.${overview.filing_id}` },
+      order: "indicator.asc",
+    })
+  : [];
+const narratives = narrativeRows.filter((n) => n.value && n.value.trim() !== "");
+
+// Group the platform's contextual notes by reporting basis for display.
+const notesByBasis = new Map();
+for (const n of platformNotesRows) {
+  if (!notesByBasis.has(n.basis)) notesByBasis.set(n.basis, []);
+  notesByBasis.get(n.basis).push(n);
+}
+const noteBases = [...notesByBasis.keys()];
 
 // --- Helpers for the small inline SVG bar charts ---
 // Each chart takes [{label, value}] and renders a horizontal bar chart.
@@ -227,6 +254,29 @@ function chartMax(rows) {
     </section>
   )}
 
+  {noteBases.length > 0 && (
+    <section class="data-section notes-section">
+      <h3>Notes from {providerName}</h3>
+      <p class="section-intro">
+        Contextual notes {providerName} attached to its own figures in this
+        filing, shown verbatim.
+      </p>
+      {noteBases.map((basis) => (
+        <div class="note-group">
+          <h4>{basis}</h4>
+          <ul class="note-list">
+            {notesByBasis.get(basis).map((n) => (
+              <li>
+                <span class="note-field">{n.field_label}</span>
+                <span class="note-text">{n.note}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </section>
+  )}
+
   <!-- Government orders -->
   <section class="data-section">
     <h3>Government orders to act against illegal content</h3>
@@ -322,6 +372,22 @@ function chartMax(rows) {
     </table>
   </section>
 
+  {narratives.length > 0 && (
+    <section class="data-section">
+      <h3>In {providerName}'s words</h3>
+      <p class="section-intro">
+        {providerName}'s own narrative answers to the qualitative questions in the
+        DSA template (Article 42 / Annex I), shown verbatim. Expand each to read.
+      </p>
+      {narratives.map((n) => (
+        <details class="narrative">
+          <summary>{n.indicator}</summary>
+          <div class="narrative-body">{n.value}</div>
+        </details>
+      ))}
+    </section>
+  )}
+
   <!-- Footer / raw data -->
   <section class="data-section">
     <h3>Raw data</h3>
@@ -332,6 +398,25 @@ function chartMax(rows) {
       <a href="/sources">sources page</a>.
     </p>
   </section>
+
+  {caveatRows.length > 0 && (
+    <section class="data-section caveats-section">
+      <h3>RTFP notes</h3>
+      <p class="section-intro">
+        RTFP's own observations about comparability and data gaps for {providerName},
+        not statements from {providerName}. Where {providerName} itself commented,
+        that appears under "Notes from {providerName}" above.
+      </p>
+      <ul class="caveat-list">
+        {caveatRows.map((c) => (
+          <li>
+            <span class="caveat-cat">{c.category}</span>
+            <span class="caveat-text">{c.note}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
 </Layout>
 
 <style>
@@ -389,4 +474,27 @@ function chartMax(rows) {
   .amar-method { font-size: 0.85rem; color: var(--ink-faint); margin: 0 0 1rem; max-width: 70ch; line-height: 1.5; }
   .amar-table th { text-align: right; }
   .amar-table th:first-child, .amar-table td:first-child { text-align: left; }
+
+  .section-intro { font-size: 0.85rem; color: var(--ink-faint); margin: 0 0 1rem; max-width: 70ch; line-height: 1.5; }
+
+  /* Notes from the platform */
+  .note-group { margin-bottom: 1.25rem; }
+  .note-group h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-faint); margin: 0 0 0.5rem; font-weight: 600; }
+  .note-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+  .note-list li { display: flex; flex-direction: column; gap: 0.15rem; padding-left: 0.75rem; border-left: 2px solid var(--border); }
+  .note-field { font-size: 0.8rem; font-weight: 600; color: var(--ink); }
+  .note-text { font-size: 0.9rem; color: var(--ink); line-height: 1.5; }
+
+  /* Platform narratives */
+  .narrative { background: white; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.5rem; }
+  .narrative summary { cursor: pointer; padding: 0.85rem 1.1rem; font-weight: 500; font-size: 0.9rem; }
+  .narrative summary:hover { color: var(--ink-faint); }
+  .narrative-body { padding: 0 1.1rem 1.1rem; font-size: 0.88rem; line-height: 1.6; color: var(--ink); white-space: pre-wrap; }
+
+  /* RTFP caveats */
+  .caveats-section { border-top: 2px solid var(--border); padding-top: 1.5rem; }
+  .caveat-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem; }
+  .caveat-list li { display: flex; flex-direction: column; gap: 0.3rem; }
+  .caveat-cat { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; color: var(--ink-faint); border: 1px solid var(--border); border-radius: 999px; padding: 0.1rem 0.5rem; align-self: flex-start; }
+  .caveat-text { font-size: 0.9rem; line-height: 1.5; color: var(--ink); }
 </style>
