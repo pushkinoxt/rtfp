@@ -60,7 +60,7 @@ const isAdult = (slug) => categoryBySlug[slug] === "Adult content";
         <strong>Version:</strong> {f.version_number}
       </p>
       <p class="links">
-        <a href={`/data/${f.provider_slug}`}>View RTFP data →</a>
+        <a href={`/platforms/${f.provider_slug}`}>View RTFP data →</a>
         {f.report_url && (
           <span class="ext">
             <a href={f.report_url} rel="noopener noreferrer">Provider's original filing →</a>

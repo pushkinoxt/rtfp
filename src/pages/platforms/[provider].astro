@@ -1,8 +1,8 @@
 ---
-// src/pages/data/[provider].astro
+// src/pages/platforms/[provider].astro
 //
 // Per-provider "data dump" page. One template generates all twelve pages at
-// build time via getStaticPaths(). URL: /data/<provider-slug>.
+// build time via getStaticPaths(). URL: /platforms/<provider-slug>.
 //
 // Each page shows everything RTFP holds for one provider's H2 2025 filing:
 // header metadata, government orders, notices, own-initiative moderation,
@@ -182,7 +182,7 @@ function chartMax(rows) {
 ---
 
 <Layout title={title} description={description}>
-  <p class="breadcrumb"><a href="/data">← All platforms</a></p>
+  <p class="breadcrumb"><a href="/platforms">← All platforms</a></p>
 
   <h2>{providerName}</h2>
   <p class="entity">{legalEntity}</p>

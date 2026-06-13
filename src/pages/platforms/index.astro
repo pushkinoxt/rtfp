@@ -1,7 +1,7 @@
 ---
-// src/pages/data/index.astro
+// src/pages/platforms/index.astro
 // Landing page for the per-provider data pages. Lists every provider,
-// grouped by its service category, linking to /data/<slug>.
+// grouped by its service category, linking to /platforms/<slug>.
 
 import Layout from "../../layouts/Layout.astro";
 import { fetchFromSupabase } from "../../lib/supabase.js";
@@ -80,7 +80,7 @@ const hasAggregate = unique.some(
       <ul class="provider-list">
         {groups.get(cat).map((p) => (
           <li>
-            <a href={`/data/${p.provider_slug}`}>
+            <a href={`/platforms/${p.provider_slug}`}>
               <span class="name">{p.provider_name}</span>
               {(() => {
                 const a = amarLines(p);

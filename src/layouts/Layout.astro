@@ -7,6 +7,13 @@
 const { title, description } = Astro.props;
 
 const PUBLIC_URL = "https://rtfp.io";
+
+// Active-section detection for the nav. The "Data" menu groups several routes,
+// so its parent lights up when the current path is any of them.
+const path = Astro.url.pathname;
+const isActive = (p) => path === p || path.startsWith(p + "/");
+const DATA_ROUTES = ["/explore", "/sources", "/api"];
+const inDataSection = DATA_ROUTES.some((p) => isActive(p));
 ---
 <!DOCTYPE html>
 <html lang="en">
@@ -105,6 +112,55 @@ const PUBLIC_URL = "https://rtfp.io";
         font-weight: 500;
       }
 
+      /* Data dropdown: a native details element, so it works without JS. */
+      .nav-dropdown { position: relative; }
+      .nav-dropdown > summary {
+        list-style: none;
+        cursor: pointer;
+        color: inherit;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+      }
+      .nav-dropdown > summary::-webkit-details-marker { display: none; }
+      .nav-dropdown > summary::marker { content: ""; }
+      .nav-dropdown > summary::after {
+        content: "";
+        width: 0.4rem;
+        height: 0.4rem;
+        border-right: 1.5px solid currentColor;
+        border-bottom: 1.5px solid currentColor;
+        transform: translateY(-2px) rotate(45deg);
+        transition: transform 0.15s ease;
+      }
+      .nav-dropdown[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
+      .nav-dropdown > summary:hover { color: var(--ink); }
+      .nav-dropdown.is-active > summary { color: var(--ink); font-weight: 500; }
+      .nav-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 0.6rem);
+        left: 0;
+        z-index: 20;
+        flex-direction: column;
+        gap: 0.1rem;
+        min-width: 10rem;
+        padding: 0.4rem;
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+      }
+      .nav-dropdown[open] > .nav-menu { display: flex; }
+      .nav-menu a {
+        padding: 0.4rem 0.6rem;
+        border-radius: 5px;
+        font-size: 0.9rem;
+        white-space: nowrap;
+      }
+      .nav-menu a:hover { background: var(--code-bg); }
+      .nav-menu a[aria-current="page"] { color: var(--ink); font-weight: 500; }
+
       .page-main {
         padding-top: 3rem;
         padding-bottom: 3rem;
@@ -170,12 +226,17 @@ const PUBLIC_URL = "https://rtfp.io";
     <header class="page-header">
       <h1><a href="/" class="wordmark">RTFP</a></h1>
       <nav>
-        <a href="/" aria-current={Astro.url.pathname === "/" ? "page" : undefined}>Home</a>
-        <a href="/data" aria-current={Astro.url.pathname.startsWith("/data") ? "page" : undefined}>Platforms</a>
-        <a href="/explore" aria-current={Astro.url.pathname === "/explore" ? "page" : undefined}>Explore</a>
-        <a href="/sources" aria-current={Astro.url.pathname === "/sources" ? "page" : undefined}>Sources</a>
-        <a href="/api" aria-current={Astro.url.pathname === "/api" ? "page" : undefined}>API</a>
-        <a href="/about" aria-current={Astro.url.pathname === "/about" ? "page" : undefined}>About</a>
+        <a href="/" aria-current={path === "/" ? "page" : undefined}>Home</a>
+        <a href="/platforms" aria-current={isActive("/platforms") ? "page" : undefined}>Platforms</a>
+        <details class:list={["nav-dropdown", { "is-active": inDataSection }]}>
+          <summary aria-haspopup="true">Data</summary>
+          <div class="nav-menu" role="menu">
+            <a href="/explore" role="menuitem" aria-current={isActive("/explore") ? "page" : undefined}>Explore</a>
+            <a href="/sources" role="menuitem" aria-current={isActive("/sources") ? "page" : undefined}>Sources</a>
+            <a href="/api" role="menuitem" aria-current={isActive("/api") ? "page" : undefined}>API</a>
+          </div>
+        </details>
+        <a href="/about" aria-current={path === "/about" ? "page" : undefined}>About</a>
       </nav>
     </header>
 
@@ -194,5 +255,23 @@ const PUBLIC_URL = "https://rtfp.io";
         </p>
       </slot>
     </footer>
+
+    <script>
+      // Progressive enhancement for the nav dropdown: native <details> already
+      // opens/closes on click and keyboard; this just closes it when the user
+      // clicks elsewhere or presses Escape, like a conventional menu.
+      document.addEventListener("click", (e) => {
+        document.querySelectorAll("details.nav-dropdown[open]").forEach((d) => {
+          if (!d.contains(e.target)) d.removeAttribute("open");
+        });
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        document.querySelectorAll("details.nav-dropdown[open]").forEach((d) => {
+          d.removeAttribute("open");
+          d.querySelector("summary")?.focus();
+        });
+      });
+    </script>
   </body>
 </html>
