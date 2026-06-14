@@ -41,6 +41,7 @@ const CATALOG = [
   { group: "Own-initiative moderation", name: "automation_share_by_provider", description: "Percentage of moderation taken solely by automated means, per provider and basis." },
   { group: "Own-initiative moderation", name: "restriction_type_breakdown", description: "Actions aggregated into the four Annex II families: visibility, monetary, service, account." },
   { group: "Own-initiative moderation", name: "account_actions_summary", description: "Account suspensions and terminations per provider per basis." },
+  { group: "Own-initiative moderation", name: "automated_means_accuracy", description: "Reported accuracy, precision and recall of automated moderation, per (provider × metric × scope). Heterogeneous; NOT comparable across providers." },
 
   { group: "Appeals, disputes, misuse", name: "internal_complaints_summary", description: "Article 20 internal complaints, with reversal and upheld outcomes." },
   { group: "Appeals, disputes, misuse", name: "out_of_court_disputes", description: "Article 21 disputes to certified bodies, with provider implementation rate." },
@@ -52,9 +53,15 @@ const CATALOG = [
   { group: "Derived metrics", name: "amar_per_moderator", description: "EU AMAR divided by total human moderators per provider.", order: "users_per_moderator.desc.nullslast" },
   { group: "Derived metrics", name: "headline_metrics_normalised", description: "Three absolute-volume metrics with their per-million-AMAR rates alongside." },
 
+  { group: "Advertising services", name: "ad_services", description: "Own-initiative ToS moderation volume on each Google advertising service, with automation share. Kept separate from platform figures. Only Google reports separately." },
+  { group: "Advertising services", name: "ad_service_appeals", description: "Appeals figures for advertising services — the only place Google Shopping's ad data appears." },
+  { group: "Advertising services", name: "ad_service_automation", description: "Automated-means volumes and per-tool accuracy for advertising services." },
+
   { group: "Data quality", name: "filings_overview", description: "One row per filing event with row-count summaries per source table." },
   { group: "Data quality", name: "anomalies_by_filing", description: "Methodology and data-quality observations recorded during import." },
   { group: "Data quality", name: "disclosure_coverage", description: "Per (provider × mandated disclosure): whether the provider populated it." },
+  { group: "Data quality", name: "platform_notes", description: "Every contextual note a provider attached to its own figures, surfaced verbatim." },
+  { group: "Data quality", name: "provider_caveats", description: "RTFP-authored comparability notes and known data gaps per provider." },
 
   { group: "Reference tables", name: "country_codes", description: "30 rows: EU27 plus Iceland, Liechtenstein, Norway (EU convention: EL for Greece)." },
   { group: "Reference tables", name: "language_codes", description: "24 rows: the official EU languages per Article 55 TFEU." },

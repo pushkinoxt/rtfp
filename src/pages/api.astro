@@ -45,8 +45,18 @@ const sections = [
     endpoints: [
       { name: "moderation_volume_comparison", description: "All own-initiative moderation actions, with a basis column distinguishing illegal-content from ToS-violation enforcement, and a level column for granularity. Filter on level to avoid double-counting.", example: "moderation_volume_comparison?level=eq.total" },
       { name: "automation_share_by_provider", description: "Percentage of moderation taken solely by automated means, per provider and basis.", example: "automation_share_by_provider" },
+      { name: "automated_means_accuracy", description: "Reported accuracy, precision and recall of automated content moderation, one row per (provider × metric × scope). Heterogeneous and NOT comparable across providers; context shows the tool or methodology note verbatim.", example: "automated_means_accuracy?metric=eq.Accuracy" },
       { name: "restriction_type_breakdown", description: "Actions aggregated into the four Annex II families: visibility, monetary, service, account.", example: "restriction_type_breakdown" },
       { name: "account_actions_summary", description: "Account suspensions and terminations per provider per basis.", example: "account_actions_summary?order=total_account_actions.desc.nullslast" },
+    ],
+  },
+  {
+    title: "Advertising services — filed separately by Google",
+    intro: "Google files advertising moderation as separate services (YouTube Ads, Google Play Ads, Google Maps Ads, plus Google Shopping's appeals-only sidecar). Held apart from the headline per-provider figures so a platform is never blended with its advertising business.",
+    endpoints: [
+      { name: "ad_services", description: "Own-initiative ToS moderation volume on each advertising service, with automation share.", example: "ad_services" },
+      { name: "ad_service_appeals", description: "Appeals and recidivism figures for advertising services (the only place Google Shopping's ad data appears).", example: "ad_service_appeals" },
+      { name: "ad_service_automation", description: "Automated-means volumes and per-tool accuracy for advertising services. Accuracy fractions re-parsed for decimal-comma reporting.", example: "ad_service_automation" },
     ],
   },
   {
@@ -78,12 +88,14 @@ const sections = [
       { name: "filings_overview", description: "One row per filing event with row-count summaries per source table.", example: "filings_overview" },
       { name: "anomalies_by_filing", description: "Methodology and data-quality observations recorded during import.", example: "anomalies_by_filing" },
       { name: "disclosure_coverage", description: "For each (provider × mandated disclosure) tuple, whether the provider populated it. Filter on is_reported=eq.false to see what's missing.", example: "disclosure_coverage?is_reported=eq.false" },
+      { name: "platform_notes", description: "Every contextual note a provider attached to its own figures across the filing, surfaced verbatim.", example: "platform_notes?provider_slug=eq.google-maps" },
+      { name: "provider_caveats", description: "RTFP-authored comparability notes and known data gaps per provider (RTFP's own observations, not the provider's).", example: "provider_caveats" },
     ],
   },
 ];
 ---
 
-<Layout title="API — RTFP" description="Public REST API documentation for RTFP. 24 read-only endpoints covering DSA transparency filings.">
+<Layout title="API — RTFP" description="Public REST API documentation for RTFP. 30 read-only endpoints covering DSA transparency filings.">
   <h2>API</h2>
   <p>
     The RTFP database is publicly queryable via a REST API. All URLs below return JSON. The credential
@@ -129,7 +141,7 @@ const sections = [
 
   <h3>Total exposed surface</h3>
   <p>
-    22 views plus 2 reference tables — 24 endpoints in total. All read-only.
+    27 views plus 3 tables, 30 endpoints in total. All read-only.
     Rate-limited at the Supabase free tier (60 requests per minute per anon
     user). OK for human exploration but won't survive scripted scraping.
   </p>
