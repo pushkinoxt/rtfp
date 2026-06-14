@@ -36,6 +36,8 @@ const [
   accountActionsRows,
   platformNotesRows,
   caveatRows,
+  adServiceRows,
+  adAppeals,
 ] = await Promise.all([
   fetchFromSupabase("filings_overview", { filters: { provider_slug: eqProvider } }),
   fetchFromSupabase("provider_overview", { filters: { provider_slug: eqProvider } }),
@@ -64,6 +66,8 @@ const [
     filters: { provider_slug: eqProvider },
     order: "sort_order.asc",
   }),
+  fetchFromSupabase("ad_services", { filters: { provider_slug: eqProvider } }),
+  fetchFromSupabase("ad_service_appeals", { filters: { provider_slug: eqProvider } }),
 ]);
 
 const overview = overviewRows[0] ?? {};
@@ -86,6 +90,12 @@ const fmtDate = (d) =>
 // and now correctly states these are the restated figures, since the views point
 // at the current version.
 const isRestated = (filing.version_number ?? 1) > 1;
+
+// --- Advertising service (Google only): a separate filing, never blended in ---
+const adService = adServiceRows[0] ?? null;
+const adServiceName =
+  adService?.service_name ?? adAppeals[0]?.service_name ?? `${providerName} Ads`;
+const hasAdData = adServiceRows.length > 0 || adAppeals.length > 0;
 
 // --- AMAR display: official total, designation floor, or per-country aggregate ---
 const amarFloorMatch = (overview.amar_eu_total_raw || "").match(/^\s*>\s*([\d.,]+)/);
@@ -349,6 +359,50 @@ function chartMax(rows) {
     </table>
   </section>
 
+  {hasAdData && (
+    <section class="data-section ad-section">
+      <h3>Advertising service</h3>
+      <p class="section-intro">
+        {adServiceName} is {providerName}'s advertising surface, moderated and
+        reported separately from the platform itself. Only Google reports advertising
+        moderation as a separate service. These figures are <strong>not</strong> part
+        of {providerName}'s headline numbers above.
+      </p>
+
+      {adService && (
+        <div class="stat-grid">
+          <div class="stat">
+            <span class="stat-number">{fmt(adService.own_initiative_tc_measures)}</span>
+            <span class="stat-label">Own-initiative actions (terms &amp; conditions)</span>
+          </div>
+          <div class="stat">
+            <span class="stat-number">{adService.automation_share_pct != null ? `${adService.automation_share_pct}%` : "—"}</span>
+            <span class="stat-label">Share taken solely by automated means</span>
+          </div>
+        </div>
+      )}
+
+      {adAppeals.length > 0 && (
+        <details class="notes-details">
+          <summary>Show advertising appeals figures ({adAppeals.length})</summary>
+          <table class="data-table ad-appeals-table">
+            <tbody>
+              {adAppeals.map((a) => (
+                <tr><th>{a.indicator}</th><td>{fmt(a.value)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
+
+      <p class="section-note">
+        Full per-tool and per-language advertising detail is in
+        <a href="/explore">Explore</a> (<code>ad_services</code>,
+        <code>ad_service_appeals</code>, <code>ad_service_automation</code>).
+      </p>
+    </section>
+  )}
+
   {narratives.length > 0 && (
     <section class="data-section">
       <h3>In {providerName}'s words</h3>
@@ -486,6 +540,10 @@ function chartMax(rows) {
   .amar-table th:first-child, .amar-table td:first-child { text-align: left; }
 
   .section-intro { font-size: 0.85rem; color: var(--ink-faint); margin: 0 0 1rem; max-width: 70ch; line-height: 1.5; }
+  .ad-section { border-left: 3px solid var(--border); padding-left: 1.25rem; }
+  .ad-section h3 { color: var(--ink-dim); }
+  .section-note { font-size: 0.8rem; color: var(--ink-faint); margin-top: 1rem; }
+  .ad-appeals-table th { font-weight: 400; }
 
   /* Notes from the platform */
   .note-group { margin-bottom: 1.25rem; }
