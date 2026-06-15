@@ -32,7 +32,7 @@ const destinations = [
   {
     href: "/explore",
     name: "Explore the data",
-    blurb: "Query every view in the database from the browser. Search, filter, sort and download — no code needed.",
+    blurb: "Query every view in the database from the browser. Search, filter, sort and download. No code needed.",
   },
   {
     href: "/sources",
@@ -46,8 +46,8 @@ const destinations = [
   },
 ];
 
-const title = "RTFP — Read The Fine Print";
-const description = "A cross-platform comparison of the EU Digital Services Act transparency filings of the largest platforms — loaded into one queryable database.";
+const title = "RTFP: Read The Fine Print";
+const description = "A cross-platform comparison of the EU Digital Services Act transparency filings of the largest platforms, loaded into one queryable database.";
 ---
 
 <Layout title={title} description={description}>
@@ -66,9 +66,9 @@ const description = "A cross-platform comparison of the EU Digital Services Act 
       So we made RTFP. Every figure traceable to the provider's own filing, comparable, visible.
     </p>
     <p class="scale">
-      Currently covering the H2 2025 filings of {providerCount} platforms —
-      total combined EU average monthly active recipients data across all platforms:
-      {fmt(totalAmar)}. More to come.
+      Currently covering the H2 2025 filings of {providerCount} platforms. Their
+      combined EU average monthly active recipients come to {fmt(totalAmar)}. More
+      to come.
     </p>
   </section>
 

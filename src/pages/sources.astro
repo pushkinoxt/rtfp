@@ -31,7 +31,7 @@ const downloadsAFile = (url) => /\.(zip|xls|xlsx)$/i.test(url || "");
 const isAdult = (slug) => categoryBySlug[slug] === "Adult content";
 ---
 
-<Layout title="Sources — RTFP" description="Source filings for every number on RTFP, linked to the providers' own published reports.">
+<Layout title="Sources | RTFP" description="Source filings for every number on RTFP, linked to the providers' own published reports.">
   <h2>Sources</h2>
   <p>
     Every number on RTFP is drawn from the providers' own published H2 2025
@@ -54,9 +54,9 @@ const isAdult = (slug) => categoryBySlug[slug] === "Adult content";
         {f.version_number > 1 && <span class="badge">Restated</span>}
       </h3>
       <p class="meta">
-        <strong>Period:</strong> {f.period_label} —
-        <strong>Originally published:</strong> {fmtDate(f.original_published_on)} —
-        <strong>This version:</strong> {fmtDate(f.this_version_published_on)} —
+        <strong>Period:</strong> {f.period_label} ·
+        <strong>Originally published:</strong> {fmtDate(f.original_published_on)} ·
+        <strong>This version:</strong> {fmtDate(f.this_version_published_on)} ·
         <strong>Version:</strong> {f.version_number}
       </p>
       <p class="links">
@@ -73,7 +73,7 @@ const isAdult = (slug) => categoryBySlug[slug] === "Adult content";
   ))}
 
   <slot name="footer" slot="footer">
-    <p>If a number on RTFP doesn't match what's in a provider's filing, the provider's filing wins. Please let us know — we'll correct it.</p>
+    <p>If a number on RTFP doesn't match what's in a provider's filing, the provider's filing wins. Please let us know. We'll correct it.</p>
   </slot>
 </Layout>
 

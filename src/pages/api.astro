@@ -11,7 +11,7 @@ const apiUrl = (path) =>
 const sections = [
   {
     title: "Reference tables",
-    intro: "Small lookup tables joined into most views — useful for understanding country and language coverage.",
+    intro: "Small lookup tables joined into most views, useful for understanding country and language coverage.",
     endpoints: [
       { name: "country_codes", description: "30 rows: EU27 plus Iceland, Liechtenstein, Norway. Uses EU convention (EL for Greece, not GR, or IE for Ireland, not GA).", example: "country_codes" },
       { name: "language_codes", description: "24 rows: the official EU languages per Article 55 TFEU.", example: "language_codes" },
@@ -25,7 +25,7 @@ const sections = [
     ],
   },
   {
-    title: "Government orders — Article 15(1)(a) DSA",
+    title: "Government orders (Article 15(1)(a) DSA)",
     endpoints: [
       { name: "government_orders_by_country", description: "Orders from Member State authorities, by country, totals across categories. Article 9 (act against illegal content) and Article 10 (provide information) reported separately.", example: "government_orders_by_country?country_code=eq.fr", exampleNote: "France comparison" },
       { name: "government_orders_by_category", description: "Orders by content category (terrorism, hate speech, etc.), summed across Member States.", example: "government_orders_by_category?provider_slug=eq.tiktok&order=orders_act_received.desc.nullslast&limit=10" },
@@ -33,7 +33,7 @@ const sections = [
     ],
   },
   {
-    title: "Article 16 notices and Trusted Flaggers — Articles 15(1)(b) and 22 DSA",
+    title: "Article 16 notices and Trusted Flaggers (Articles 15(1)(b) and 22 DSA)",
     endpoints: [
       { name: "notices_by_category", description: "User notices submitted under the Article 16 mechanism, with the Trusted Flagger breakdown alongside.", example: "notices_by_category?provider_slug=eq.x&order=notices_received.desc.nullslast&limit=10" },
       { name: "trusted_flagger_intensity", description: "Share of notices coming from Trusted Flaggers (civil society organisations with privileged channels), per category.", example: "trusted_flagger_intensity?category_code=eq.TOTAL", exampleNote: "headline per-provider share" },
@@ -41,17 +41,17 @@ const sections = [
     ],
   },
   {
-    title: "Own-initiative moderation — Articles 15(1)(c) and 15(1)(d) DSA",
+    title: "Own-initiative moderation (Articles 15(1)(c) and 15(1)(d) DSA)",
     endpoints: [
       { name: "moderation_volume_comparison", description: "All own-initiative moderation actions, with a basis column distinguishing illegal-content from ToS-violation enforcement, and a level column for granularity. Filter on level to avoid double-counting.", example: "moderation_volume_comparison?level=eq.total" },
       { name: "automation_share_by_provider", description: "Percentage of moderation taken solely by automated means, per provider and basis.", example: "automation_share_by_provider" },
-      { name: "automated_means_accuracy", description: "Reported accuracy, precision and recall of automated content moderation, one row per (provider × metric × scope). Heterogeneous and NOT comparable across providers; context shows the tool or methodology note verbatim.", example: "automated_means_accuracy?metric=eq.Accuracy" },
+      { name: "automated_means_accuracy", description: "Reported accuracy, precision and recall of automated content moderation, one row per (provider × metric × scope). Heterogeneous and NOT comparable across providers. Context shows the tool or methodology note verbatim.", example: "automated_means_accuracy?metric=eq.Accuracy" },
       { name: "restriction_type_breakdown", description: "Actions aggregated into the four Annex II families: visibility, monetary, service, account.", example: "restriction_type_breakdown" },
       { name: "account_actions_summary", description: "Account suspensions and terminations per provider per basis.", example: "account_actions_summary?order=total_account_actions.desc.nullslast" },
     ],
   },
   {
-    title: "Advertising services — filed separately by Google",
+    title: "Advertising services (filed separately by Google)",
     intro: "Google files advertising moderation as separate services (YouTube Ads, Google Play Ads, Google Maps Ads, plus Google Shopping's appeals-only sidecar). Held apart from the headline per-provider figures so a platform is never blended with its advertising business.",
     endpoints: [
       { name: "ad_services", description: "Own-initiative ToS moderation volume on each advertising service, with automation share. Only Google reports advertising separately.", example: "ad_services" },
@@ -60,7 +60,7 @@ const sections = [
     ],
   },
   {
-    title: "Appeals, disputes, misuse — Articles 20, 21, 23 DSA",
+    title: "Appeals, disputes, misuse (Articles 20, 21, 23 DSA)",
     endpoints: [
       { name: "internal_complaints_summary", description: "User complaints filed via the Article 20 internal mechanism, by what was originally moderated, with reversal and upheld outcomes.", example: "internal_complaints_summary?complaint_subject=eq.Number%20of%20complaints%20submitted%20to%20the%20internal-complaints%20mechanism" },
       { name: "out_of_court_disputes", description: "Article 21 disputes to certified out-of-court bodies, including share_provider_implemented_pct (the Article 24(1)(a) implementation rate).", example: "out_of_court_disputes" },
@@ -68,7 +68,7 @@ const sections = [
     ],
   },
   {
-    title: "Human resources — Article 42(2)(a) DSA",
+    title: "Human resources (Article 42(2)(a) DSA)",
     endpoints: [
       { name: "human_moderators_by_language", description: "Moderator headcount per EU official language per provider.", example: "human_moderators_by_language?language_code=eq.el", exampleNote: "Greek moderators across providers" },
     ],
@@ -95,7 +95,7 @@ const sections = [
 ];
 ---
 
-<Layout title="API — RTFP" description="Public REST API documentation for RTFP. 30 read-only endpoints covering DSA transparency filings.">
+<Layout title="API | RTFP" description="Public REST API documentation for RTFP. 30 read-only endpoints covering DSA transparency filings.">
   <h2>API</h2>
   <p>
     The RTFP database is publicly queryable via a REST API. All URLs below return JSON. The credential
@@ -115,7 +115,7 @@ const sections = [
     <code>order=column.desc.nullslast</code>. Limit with <code>limit=N</code>.
     Pick columns with <code>select=col1,col2,col3</code>. Combine with <code>&amp;</code>.
   </p>
-  <p>Worked example — show the top 5 categories by notices received for X:</p>
+  <p>Worked example. Show the top 5 categories by notices received for X:</p>
   <pre><code>?select=category_code,notices_received&provider_slug=eq.x&order=notices_received.desc.nullslast&limit=5</code></pre>
   <p>
     Full PostgREST query reference:

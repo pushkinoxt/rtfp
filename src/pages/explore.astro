@@ -35,13 +35,13 @@ const CATALOG = [
 
   { group: "Notices & Trusted Flaggers", name: "notices_by_category", description: "Article 16 user notices by category, with the Trusted Flagger breakdown alongside." },
   { group: "Notices & Trusted Flaggers", name: "trusted_flagger_intensity", description: "Share of notices coming from Trusted Flaggers, per category." },
-  { group: "Notices & Trusted Flaggers", name: "notice_response_times", description: "Median time to action notices — regular vs Trusted Flagger." },
+  { group: "Notices & Trusted Flaggers", name: "notice_response_times", description: "Median time to action notices, regular vs Trusted Flagger." },
 
   { group: "Own-initiative moderation", name: "moderation_volume_comparison", description: "All own-initiative actions, with basis (illegal vs ToS) and level columns. Filter level=total to avoid double-counting." },
   { group: "Own-initiative moderation", name: "automation_share_by_provider", description: "Percentage of moderation taken solely by automated means, per provider and basis." },
   { group: "Own-initiative moderation", name: "restriction_type_breakdown", description: "Actions aggregated into the four Annex II families: visibility, monetary, service, account." },
   { group: "Own-initiative moderation", name: "account_actions_summary", description: "Account suspensions and terminations per provider per basis." },
-  { group: "Own-initiative moderation", name: "automated_means_accuracy", description: "Reported accuracy, precision and recall of automated moderation, per (provider × metric × scope). Heterogeneous; NOT comparable across providers." },
+  { group: "Own-initiative moderation", name: "automated_means_accuracy", description: "Reported accuracy, precision and recall of automated moderation, per (provider × metric × scope). Heterogeneous. NOT comparable across providers." },
 
   { group: "Appeals, disputes, misuse", name: "internal_complaints_summary", description: "Article 20 internal complaints, with reversal and upheld outcomes." },
   { group: "Appeals, disputes, misuse", name: "out_of_court_disputes", description: "Article 21 disputes to certified bodies, with provider implementation rate." },
@@ -54,7 +54,7 @@ const CATALOG = [
   { group: "Derived metrics", name: "headline_metrics_normalised", description: "Three absolute-volume metrics with their per-million-AMAR rates alongside." },
 
   { group: "Advertising services", name: "ad_services", description: "Own-initiative ToS moderation volume on each Google advertising service, with automation share. Kept separate from platform figures. Only Google reports separately." },
-  { group: "Advertising services", name: "ad_service_appeals", description: "Appeals figures for advertising services — the only place Google Shopping's ad data appears." },
+  { group: "Advertising services", name: "ad_service_appeals", description: "Appeals figures for advertising services, the only place Google Shopping's ad data appears." },
   { group: "Advertising services", name: "ad_service_automation", description: "Automated-means volumes and per-tool accuracy for advertising services." },
 
   { group: "Data quality", name: "filings_overview", description: "One row per filing event with row-count summaries per source table." },
@@ -67,8 +67,8 @@ const CATALOG = [
   { group: "Reference tables", name: "language_codes", description: "24 rows: the official EU languages per Article 55 TFEU." },
 ];
 
-const title = "Explore the data — RTFP";
-const description = "Query every view in the RTFP database from your browser. Search, filter, sort and download the harmonised DSA transparency data — no code required.";
+const title = "Explore the data | RTFP";
+const description = "Query every view in the RTFP database from your browser. Search, filter, sort and download the harmonised DSA transparency data. No code required.";
 ---
 
 <Layout title={title} description={description} wide={true}>
@@ -76,7 +76,7 @@ const description = "Query every view in the RTFP database from your browser. Se
   <p>
     Every endpoint behind the <a href="/api">API</a>, queried live from your browser. Pick a
     dataset on the left, then search, sort and filter the rows. Nothing is
-    pre-baked — these are the numbers exactly as the database returns them.
+    pre-baked. These are the numbers exactly as the database returns them.
   </p>
 
   <div class="explorer">
@@ -125,7 +125,7 @@ const description = "Query every view in the RTFP database from your browser. Se
 
   <p class="cap-note">
     Queries run against the live database (rate-limited to 60 requests per
-    minute). The server returns at most the chosen row cap; very large views may
+    minute). The server returns at most the chosen row cap. Very large views may
     be truncated. For scripted access, use the <a href="/api">REST API</a> directly.
   </p>
 </Layout>
@@ -327,7 +327,7 @@ const description = "Query every view in the RTFP database from your browser. Se
 
       const capped = state.rows.length >= Number($("limit-select").value);
       let msg = `${fmtNum(rows.length)} of ${fmtNum(state.rows.length)} rows`;
-      if (capped) msg += " (server cap reached — there may be more)";
+      if (capped) msg += " (server cap reached, there may be more)";
       setStatus(msg);
       $("download-csv").disabled = rows.length === 0;
     }

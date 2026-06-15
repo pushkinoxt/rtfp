@@ -163,18 +163,18 @@ const tcAutomation = automationRows.find(r => r.basis === "tc");
 // Restriction-type breakdown from the ToS TOTAL row.
 const restrictionRows = tcTotal
   ? [
-      { label: "Visibility — removal", value: tcTotal.vis_removal },
-      { label: "Visibility — disable", value: tcTotal.vis_disable },
-      { label: "Visibility — demoted", value: tcTotal.vis_demoted },
-      { label: "Visibility — age-restricted", value: tcTotal.vis_age_restricted },
-      { label: "Visibility — interaction-restricted", value: tcTotal.vis_interaction_restricted },
-      { label: "Visibility — labelled", value: tcTotal.vis_labelled },
-      { label: "Monetary — suspension", value: tcTotal.mon_suspension },
-      { label: "Monetary — termination", value: tcTotal.mon_termination },
-      { label: "Service — suspension", value: tcTotal.svc_suspension },
-      { label: "Service — termination", value: tcTotal.svc_termination },
-      { label: "Account — suspension", value: tcTotal.acc_suspension },
-      { label: "Account — termination", value: tcTotal.acc_termination },
+      { label: "Visibility (removal)", value: tcTotal.vis_removal },
+      { label: "Visibility (disable)", value: tcTotal.vis_disable },
+      { label: "Visibility (demoted)", value: tcTotal.vis_demoted },
+      { label: "Visibility (age-restricted)", value: tcTotal.vis_age_restricted },
+      { label: "Visibility (interaction-restricted)", value: tcTotal.vis_interaction_restricted },
+      { label: "Visibility (labelled)", value: tcTotal.vis_labelled },
+      { label: "Monetary (suspension)", value: tcTotal.mon_suspension },
+      { label: "Monetary (termination)", value: tcTotal.mon_termination },
+      { label: "Service (suspension)", value: tcTotal.svc_suspension },
+      { label: "Service (termination)", value: tcTotal.svc_termination },
+      { label: "Account (suspension)", value: tcTotal.acc_suspension },
+      { label: "Account (termination)", value: tcTotal.acc_termination },
     ].filter(r => (r.value ?? 0) > 0)
   : [];
 
@@ -182,7 +182,7 @@ const accountActions = accountActionsRows.find(r => r.basis === "tc")
   ?? accountActionsRows.find(r => r.basis === "illegal")
   ?? {};
 
-const title = `${providerName} — DSA transparency data | RTFP`;
+const title = `${providerName} DSA transparency data | RTFP`;
 const description = `Everything RTFP holds from ${providerName}'s H2 2025 EU Digital Services Act transparency filing.`;
 
 // Max value for chart scaling
@@ -408,9 +408,9 @@ function chartMax(rows) {
       <h3>In {providerName}'s words</h3>
       <p class="section-intro">
         {providerName}'s long-form answers to the standard qualitative questions
-        every platform must answer (Article 42 of the DSA) — how it moderates
+        every platform must answer (Article 42 of the DSA). How it moderates
         content, how it measures accuracy, how its teams are resourced. Its own
-        words; expand each to read. (Short notes pinned to individual figures are
+        words. Expand each to read. (Short notes pinned to individual figures are
         under "Footnotes from {providerName}" below.)
       </p>
       {narratives.map((n) => (
@@ -438,7 +438,7 @@ function chartMax(rows) {
       <h3>Footnotes from {providerName}</h3>
       <p class="section-intro">
         Short notes {providerName} pinned to <em>specific figures</em> in its
-        filing — definitions, clarifications and corrections written against
+        filing. Definitions, clarifications and corrections written against
         individual numbers, shown verbatim. (For its longer descriptions of how it
         moderates, see "In {providerName}'s words" above.)
       </p>
