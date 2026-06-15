@@ -51,10 +51,10 @@ function nameList(items) {
 }
 ---
 
-<Layout title="About - RTFP" description="What RTFP is, what it isn't, how the data is built, and how every number reconciles against the providers' own published filings.">
+<Layout title="About | RTFP" description="What RTFP is, what it isn't, how the data is built, and how every number reconciles against the providers' own published filings.">
   <h2>About</h2>
   <p>
-    RTFP - Read The Fine Print - is a cross-platform comparison of the
+    RTFP (Read The Fine Print) is a cross-platform comparison of the
     largest platforms' EU Digital Services Act transparency reports. We load
     each platform's published filing into one normalised database and surface the
     comparisons that no one provider reports alone. RTFP is run
@@ -67,16 +67,16 @@ function nameList(items) {
     twice a year since 2023. For the first two years, each platform reported in
     its own format, with its own categories and its own definitions, so
     comparison across platforms was close to impossible. From the H2 2025
-    reporting cycle - the filings published in February 2026 - every platform
+    reporting cycle (the filings published in February 2026), every platform
     must use the harmonised template defined by Commission Implementing
     Regulation (EU) 2024/2835 of 4 November 2024. For the first time, every 
     platform is required to answer the same questions in the same template. 
-    That does not guarantee they interpreted the questions identically, but 
-    it gets everyone onto the same starting line. RTFP exists to do exactly that - 
-    which we'd thought was kind of the point of the regulations.
+    That does not guarantee that the templates were interpreted in the same way, 
+    but it ensures the platforms are all spinning their narratives on the exact 
+    same piece of paper. RTFP exists to reproduce said papers, best we can.
   </p>
   <p>
-    Lists of where these reports live already exist - the Commission publishes
+    Lists of where these reports live already exist. The Commission publishes
     one, and so do others. What none of them does is make the data itself
     queryable. RTFP loads the filings, normalises them, and opens the result up
     for anyone to read, compare, and check.
@@ -95,78 +95,70 @@ function nameList(items) {
   ))}
   <p>
     The category labels are our own grouping, based on general usage rather than
-    any category in the regulation. The dataset will grow: this is a trial phase,
-    and we are still working towards covering the filings of all the largest
-    platforms. The next cycle, covering H1 2026, is due in August 2026, and any
-    amendments to past filings will be added as soon as we can.
+    any category in the regulation. It's a work in progress. We'll add more platforms 
+    and future reporting cycles as we get to them. The next cycle, covering H1 2026, 
+    is due in August 2026, and any amendments to past filings will be added as soon 
+    as we can.
   </p>
   
-  <h3>A word of caution on data and comparability</h3>
-  <p>
-    Reader beware: "Lies, damned lies, and statistics". The regulations got 
-    everyone onto the same formats, but standardisation is not the same thing as comparability. 
-    The platforms are now using the same form, but that does not mean they 
-    measured everything in exactly the same way. Sometimes two numbers appear under the 
-    same column heading because they belong there. Sometimes they appear under the same 
-    column heading because everyone was told to put them there. 
-  </p>
-  <p>
-    A spike in one platform's figures is not automatically evidence that it is doing better, 
-    worse, more, less, or anything in particular. It may reflect a different user base, 
-    different internal processes, different definitions, or simply a different interpretation 
-    of the reporting instructions. Exercise statistical caution.
-  </p>
-  
-  <h3>How the data is built</h3>
+  <h3>How the data is built, and how to read it</h3>
   <p>
     Each platform publishes its H2 2025 report as a bundle of CSV files laid out
     according to Annex II of the Implementing Regulation. We load those files as
-    filed, preserving the original figures, and link every row back to the
-    specific filing it came from - which platform, which reporting period, which
-    publication date and version. Nothing is recomputed. Every number traces to a 
-    cell in a published CSV.
+    filed, preserving the original figures, and link every row back to the exact
+    filing it came from (which platform, which reporting period, which publication
+    date and version). Nothing is recomputed. Every number traces to a cell in a
+    published CSV.
   </p>
   <p>
-    "Harmonised" turns out to mean "using the same form" rather than "doing the same thing". 
-    Platforms fill the same template differently: some leave whole sections blank, 
-    some invent sub-categories the template doesn't define, some report the same 
-    country or language under different codes. Where it is needed to make platforms
-    comparable, we normalise these surface differences - for example, Greece is
-    reported as both GR and EL across platforms, and a few platforms write a
-    country code where a language code is expected. These normalisations are
-    applied transparently in database views, and the underlying raw figures are
-    never overwritten. Anything that does not fit neatly into the template is 
-    recorded as a data-quality observation rather than swept under the rug. 
-    The rug is already crowded enough.
+    "Harmonised" means "using the same form" rather than "doing the
+    same thing". Platforms fill the same template differently. Some leave whole
+    sections blank, some invent sub-categories the template doesn't define, some
+    report the same country or language under different codes. Where it is needed
+    to make platforms comparable, we normalise these surface differences. For
+    example, Greece is reported as both GR and EL across platforms, and a few
+    platforms write a country code where a language code is expected. These
+    normalisations are applied transparently in database views, and the underlying
+    raw figures are never overwritten. Anything that does not fit neatly into the
+    template is recorded as a data-quality observation rather than swept under the
+    rug. The rug is already crowded enough.
+  </p>
+  <p>
+    Standardising the form is not the same as standardising the measurement.
+    Sometimes two numbers appear under one column heading because they belong
+    there. Sometimes they appear under it because everyone was told to put them
+    there. So a spike in one platform's figures is not evidence that it is doing
+    better, worse, more, or less. It may reflect a different user base, different
+    internal processes, different definitions, or simply a different reading of
+    the instructions. "Lies, damned lies, and statistics." Exercise caution.
   </p>
 
   <h3>What this is not</h3>
   <p>
     This is not an audit. Every number on the site is what a platform reported
-    about itself. Where platforms disagree on methodology - and they do - that
-    disagreement is surfaced as a finding, not resolved. Every number on the site 
-    is a number that a platform reported about itself. If a filing contains an 
-    error, we will faithfully preserve that error and point back to where it came 
-    from. We are custodians of the numbers, not their parents.
+    about itself. The European Commission built a massive regulatory framework...
+    but left the data collection to the honour system. Where platforms disagree 
+    on methodology, and they do, that disagreement is surfaced as a finding, not 
+    resolved. If a filing contains an error, we will faithfully reproduce that error 
+    and point back to where it came from. We are custodians of the numbers, not their parents.
   </p>
   <p>
     RTFP does not include the EU's Statements of Reasons database, which is a
-    separate dataset covering individual moderation decisions. It covers the
-    quantitative templates filed under Articles 15 and 24 of the DSA, and the
-    qualitative narrative sections under Article 42.
+    separate, sprawling dataset covering individual moderation decisions. We are 
+    considering bridging with the SoR data in a future phase.
   </p>
   <p>
     We currently load only the CSV templates corresponding to Tables 1–11. 
     Some providers also publish consolidated spreadsheets, written reports, 
     appendices, and other supporting material. Those may contain useful context. 
-    They may also contain surprises. For now, we stick to the tables.
+    They also contain corporate poetry. For now, we stick to the tables.
   </p>
 
   <h3>How the numbers reconcile</h3>
   <p>
     Every finding links to the database view behind it. Every view is publicly
-    queryable - without writing any code on the <a href="/explore">explore</a>
-    page, or directly via the <a href="/api">API</a>. And every filing the
+    queryable on the <a href="/explore">explore</a> page without writing any
+    code, or directly via the <a href="/api">API</a>. And every filing the
     site draws from is listed on the <a href="/sources">sources</a> page, linked
     to the provider's own published report, so any number here can be checked
     against the original. If a figure on RTFP disagrees with a provider's filing, 
