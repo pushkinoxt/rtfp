@@ -1,0 +1,15 @@
+---
+// src/pages/patterns/report-coverage.astro
+// One pattern, one URL. The chart machinery lives in the component; this page
+// just sets the page title and drops it into the site layout.
+
+import Layout from "../../layouts/Layout.astro";
+import CoverageMatrix from "../../components/CoverageMatrix.astro";
+---
+
+<Layout
+  title="Report coverage | RTFP"
+  description="Which figures each platform's H2 2025 DSA transparency report presents, in full, in part, or not at all."
+>
+  <CoverageMatrix />
+</Layout>

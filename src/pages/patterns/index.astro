@@ -1,0 +1,70 @@
+---
+// src/pages/patterns/index.astro
+// The patterns hub. A plain index of every chart, each linking to its own page.
+// Built ones link out; planned ones show muted so the catalogue is visible.
+
+import Layout from "../../layouts/Layout.astro";
+
+const patterns = [
+  { slug: "report-coverage",        title: "Report coverage",            blurb: "Which figures each platform presents, in full, in part, or not at all.",          ready: true },
+  { slug: "automation-share",       title: "Automation share",           blurb: "The share of own-initiative actions taken by solely automated means.",            ready: false },
+  { slug: "action-mix",             title: "Action mix",                 blurb: "How enforcement splits across visibility, monetary, service, and account measures.", ready: false },
+  { slug: "moderation-by-language", title: "Moderation by language",     blurb: "Where platforms report moderation resources across the 24 EU official languages.",  ready: false },
+  { slug: "divergence",             title: "Same heading, different thing", blurb: "How platforms fill the same field in incompatible ways.",                       ready: false },
+];
+
+const live = patterns.filter((p) => p.ready);
+const upcoming = patterns.filter((p) => !p.ready);
+---
+
+<Layout
+  title="Patterns | RTFP"
+  description="Charts drawn from the platforms' H2 2025 DSA transparency reports."
+>
+  <div class="patterns-hub">
+    <p class="eyebrow">Patterns</p>
+    <h1>Patterns in the data</h1>
+    <p class="standfirst">
+      Charts drawn from the platforms' H2 2025 DSA transparency reports. Each one is neutral by
+      default, and every figure traces back to a published filing.
+    </p>
+
+    <div class="card-grid">
+      {live.map((p) => (
+        <a class="card" href={`/patterns/${p.slug}`}>
+          <h2>{p.title}</h2>
+          <p>{p.blurb}</p>
+        </a>
+      ))}
+    </div>
+
+    {upcoming.length > 0 && (
+      <>
+        <p class="upcoming-head">In progress</p>
+        <div class="card-grid">
+          {upcoming.map((p) => (
+            <div class="card muted">
+              <h2>{p.title}</h2>
+              <p>{p.blurb}</p>
+            </div>
+          ))}
+        </div>
+      </>
+    )}
+  </div>
+</Layout>
+
+<style>
+  .patterns-hub .eyebrow { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.6rem; }
+  .patterns-hub h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.5rem; }
+  .patterns-hub .standfirst { font-size: 1rem; color: var(--ink-dim); margin: 0 0 0.5rem; max-width: 64ch; }
+
+  .patterns-hub .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .patterns-hub .card { display: block; border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem 1.2rem; text-decoration: none; color: inherit; transition: border-color 0.15s; }
+  .patterns-hub a.card:hover { border-color: var(--ink-faint); }
+  .patterns-hub .card h2 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 0.35rem; }
+  .patterns-hub .card p { font-size: 0.85rem; color: var(--ink-dim); margin: 0; line-height: 1.45; }
+  .patterns-hub .card.muted { opacity: 0.55; }
+
+  .patterns-hub .upcoming-head { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 2rem 0 0; }
+</style>

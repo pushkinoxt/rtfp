@@ -1,12 +1,9 @@
 ---
-// src/pages/patterns.astro
-// Report-coverage matrix, wired to live data at BUILD time. This is the
-// coverage-matrix prototype with its hardcoded array replaced by two fetches.
-// Everything below the frontmatter (markup, style, the interaction script) is
-// the same shape as the standalone prototype. Further charts (automation share,
-// action mix) become sibling <section>s below this one later.
+// src/components/CoverageMatrix.astro
+// Report-coverage matrix, wired to live data at build time. A self-contained
+// chart: it fetches its own data, renders the grid, and ships its own style and
+// script. Used by /patterns/report-coverage, so the page around it stays light.
 
-import Layout from "../layouts/Layout.astro";
 import { fetchFromSupabase } from "../lib/supabase.js";
 
 // One row per (provider, indicator): is_reported is a binary flag, value_if_reported
@@ -22,9 +19,6 @@ const overview = await fetchFromSupabase("provider_overview", {
 });
 const sectorBySlug = new Map(overview.map((p) => [p.provider_slug, p.service_category || "Other"]));
 
-// Columns, matched to disclosure_coverage by (article_reference, disclosure_label).
-// `completeness` columns (all 27 Member States, all 24 languages) derive a real
-// partial state from the value: reported for N of the total.
 const COLUMNS = [
   { key: "amar",       short: "AMAR (27 states)", full: "AMAR reported for all 27 EU Member States",            art: "Art. 42(3)",    label: "AMAR for all 27 EU Member States",                     completeness: 27 },
   { key: "ord9",       short: "Orders, Art 9",    full: "Article 9 orders received (total)",                    art: "Art. 15(1)(a)", label: "Article 9 orders received (total)" },
@@ -64,7 +58,6 @@ function deriveCell(col, row) {
   return reported ? { state: 2, value: val } : { state: 0, value: null };
 }
 
-// One row per provider present in coverage, sorted alphabetically.
 const provMap = new Map();
 for (const r of coverage) {
   if (!provMap.has(r.provider_slug)) {
@@ -80,7 +73,6 @@ for (const p of providers) {
   p.cells = COLUMNS.map((col) => ({ ...deriveCell(col, byKey.get(`${p.slug}||${col.art}||${col.label}`)), col }));
 }
 
-// Sectors present, most-populated first.
 const sectorCounts = {};
 for (const p of providers) sectorCounts[p.sector] = (sectorCounts[p.sector] || 0) + 1;
 const sectors = Object.keys(sectorCounts).sort((a, b) => sectorCounts[b] - sectorCounts[a]);
@@ -100,99 +92,93 @@ function detailFor(col, cell) {
 }
 ---
 
-<Layout
-  title="Report coverage | RTFP"
-  description="Which figures each platform's H2 2025 DSA transparency report presents, in full, in part, or not at all."
->
-  <div class="coverage">
-    <p class="eyebrow">Report coverage</p>
-    <h1>What each platform's report contains</h1>
-    <p class="standfirst">
-      The harmonised template asks every platform the same questions. Whether a field is filled
-      depends on the service, and an empty field is not always a gap. The regulation itself says a
-      requirement that does not apply to a provider should be left blank. This grid shows which
-      figures each report presents in full, in part, or not at all. 
-    </p>
+<div class="coverage">
+  <p class="eyebrow">Report coverage</p>
+  <h1>What each platform's report contains</h1>
+  <p class="standfirst">
+    The harmonised template asks every platform the same questions. Whether a field is filled
+    depends on the service, and an empty field is not always a gap. The regulation itself says a
+    requirement that does not apply to a provider should be left blank. This grid shows which
+    figures each report presents in full, in part, or not at all.
+  </p>
 
-    <div class="sectors" id="sectors">
-      <button data-sec="All sectors" aria-pressed="true">All sectors <span class="ct">{providers.length}</span></button>
-      {sectors.map((s) => (
-        <button data-sec={s} aria-pressed="false">{s} <span class="ct">{sectorCounts[s]}</span></button>
-      ))}
-    </div>
+  <div class="sectors" id="sectors">
+    <button data-sec="All sectors" aria-pressed="true">All sectors <span class="ct">{providers.length}</span></button>
+    {sectors.map((s) => (
+      <button data-sec={s} aria-pressed="false">{s} <span class="ct">{sectorCounts[s]}</span></button>
+    ))}
+  </div>
 
-    <div class="legend">
-      <span><i class="swatch full"></i>Reported</span>
-      <span><i class="swatch part"></i>Partial</span>
-      <span><i class="swatch none"></i>Not present</span>
-    </div>
+  <div class="legend">
+    <span><i class="swatch full"></i>Reported</span>
+    <span><i class="swatch part"></i>Partial</span>
+    <span><i class="swatch none"></i>Not present</span>
+  </div>
 
-    <details class="defs">
-      <summary>What these mean</summary>
-      <dl>
-        <dt>Reported</dt>
-        <dd>The figures the template asks for are present. A reported zero counts. A nil return is data.</dd>
-        <dt>Partial</dt>
-        <dd>Reported for some but not all of what the field covers. For the language and Member State
-          columns, the tooltip shows how many of the 24 or 27.</dd>
-        <dt>Not present</dt>
-        <dd>No figures appear. Under Implementing Regulation 2024/2835, a requirement that does not
-          apply to a service is left blank, so an empty cell is not necessarily an omission.</dd>
-      </dl>
-    </details>
+  <details class="defs">
+    <summary>What these mean</summary>
+    <dl>
+      <dt>Reported</dt>
+      <dd>The figures the template asks for are present. A reported zero counts. A nil return is data.</dd>
+      <dt>Partial</dt>
+      <dd>Reported for some but not all of what the field covers. For the language and Member State
+        columns, the tooltip shows how many of the 24 or 27.</dd>
+      <dt>Not present</dt>
+      <dd>No figures appear. Under Implementing Regulation 2024/2835, a requirement that does not
+        apply to a service is left blank, so an empty cell is not necessarily an omission.</dd>
+    </dl>
+  </details>
 
-    <div class="scroll">
-      <table aria-label="Report coverage by platform and template field">
-        <thead>
-          <tr>
-            <th class="corner">Platform \ field</th>
-            {COLUMNS.map((c, i) => (
-              <th data-col={i}><span class="col-label">{c.short}</span></th>
+  <div class="scroll">
+    <table aria-label="Report coverage by platform and template field">
+      <thead>
+        <tr>
+          <th class="corner">Platform \ field</th>
+          {COLUMNS.map((c, i) => (
+            <th data-col={i}><span class="col-label">{c.short}</span></th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {providers.map((p) => (
+          <tr data-sector={p.sector}>
+            <th scope="row">{p.name}</th>
+            {p.cells.map((cell, i) => (
+              <td data-col={i}>
+                <span
+                  class:list={["cell", CLS[cell.state]]}
+                  tabindex="0"
+                  data-name={p.name}
+                  data-field={cell.col.full}
+                  data-art={cell.col.art}
+                  data-state={STATE[cell.state]}
+                  data-detail={detailFor(cell.col, cell)}
+                ></span>
+              </td>
             ))}
           </tr>
-        </thead>
-        <tbody>
-          {providers.map((p) => (
-            <tr data-sector={p.sector}>
-              <th scope="row">{p.name}</th>
-              {p.cells.map((cell, i) => (
-                <td data-col={i}>
-                  <span
-                    class:list={["cell", CLS[cell.state]]}
-                    tabindex="0"
-                    data-name={p.name}
-                    data-field={cell.col.full}
-                    data-art={cell.col.art}
-                    data-state={STATE[cell.state]}
-                    data-detail={detailFor(cell.col, cell)}
-                  ></span>
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-
-    <p class="source">
-      Source: RTFP, from the platforms' H2 2025 DSA transparency filings. The grid records whether
-      figures are present for each field, not how large they are or how well a platform moderates. An
-      empty cell means no figures were presented. Under the regulation's own instructions a
-      requirement that does not apply to a service is left blank, so it is not necessarily a gap.
-    </p>
-
-    <div class="tip" id="tip"></div>
+        ))}
+      </tbody>
+    </table>
   </div>
-</Layout>
+
+  <p class="source">
+    Source: RTFP, from the platforms' H2 2025 DSA transparency filings. The grid records whether
+    figures are present for each field, not how large they are or how well a platform moderates. An
+    empty cell means no figures were presented. Under the regulation's own instructions a
+    requirement that does not apply to a service is left blank, so it is not necessarily a gap.
+  </p>
+
+  <div class="tip" id="tip"></div>
+</div>
 
 <style>
   .coverage { --cell-full: #292524; --cell-part: #b8b2ab; --cell-none: #fdfdfc; }
   .coverage .eyebrow { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.6rem; }
   .coverage h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.5rem; max-width: 38ch; }
   .coverage .standfirst { font-size: 1rem; color: var(--ink-dim); margin: 0 0 0.4rem; max-width: 66ch; }
-  .coverage .takeaway { font-size: 0.95rem; color: var(--ink); margin: 0.9rem 0 1.3rem; max-width: 62ch; padding-left: 0.85rem; border-left: 2px solid var(--ink); }
 
-  .coverage .sectors { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+  .coverage .sectors { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 1rem 0 0.9rem; }
   .coverage .sectors button { font: inherit; font-size: 0.8rem; color: var(--ink-dim); background: none; border: 1px solid var(--border); border-radius: 999px; padding: 0.25rem 0.75rem; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s; }
   .coverage .sectors button .ct { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
   .coverage .sectors button:hover { color: var(--ink); border-color: var(--ink-faint); }
