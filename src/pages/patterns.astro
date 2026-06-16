@@ -1,0 +1,291 @@
+---
+// src/pages/patterns.astro
+// Report-coverage matrix, wired to live data at BUILD time. This is the
+// coverage-matrix prototype with its hardcoded array replaced by two fetches.
+// Everything below the frontmatter (markup, style, the interaction script) is
+// the same shape as the standalone prototype. Further charts (automation share,
+// action mix) become sibling <section>s below this one later.
+
+import Layout from "../layouts/Layout.astro";
+import { fetchFromSupabase } from "../lib/supabase.js";
+
+// One row per (provider, indicator): is_reported is a binary flag, value_if_reported
+// is the figure (or, for the "all 24 / all 27" checks, how many were covered).
+const coverage = await fetchFromSupabase("disclosure_coverage", {
+  select: "provider_slug,provider_name,article_reference,disclosure_label,is_reported,value_if_reported",
+  order: "provider_name.asc",
+});
+
+// Sectors come from the same source the platforms index uses, so they stay in sync.
+const overview = await fetchFromSupabase("provider_overview", {
+  select: "provider_slug,service_category",
+});
+const sectorBySlug = new Map(overview.map((p) => [p.provider_slug, p.service_category || "Other"]));
+
+// Columns, matched to disclosure_coverage by (article_reference, disclosure_label).
+// `completeness` columns (all 27 Member States, all 24 languages) derive a real
+// partial state from the value: reported for N of the total.
+const COLUMNS = [
+  { key: "amar",       short: "AMAR (27 states)", full: "AMAR reported for all 27 EU Member States",            art: "Art. 42(3)",    label: "AMAR for all 27 EU Member States",                     completeness: 27 },
+  { key: "ord9",       short: "Orders, Art 9",    full: "Article 9 orders received (total)",                    art: "Art. 15(1)(a)", label: "Article 9 orders received (total)" },
+  { key: "ord10",      short: "Orders, Art 10",   full: "Article 10 orders received (total)",                   art: "Art. 15(1)(a)", label: "Article 10 orders received (total)" },
+  { key: "notices",    short: "Art 16 notices",   full: "Article 16 notices received (total)",                  art: "Art. 15(1)(b)", label: "Article 16 notices received (total)" },
+  { key: "tf",         short: "Trusted flaggers", full: "Trusted Flagger notices received (total)",             art: "Art. 22",       label: "Trusted Flagger notices received (total)" },
+  { key: "illegal",    short: "Own: illegal",     full: "Own-initiative actions against illegal content",       art: "Art. 15(1)(c)", label: "Own-initiative actions against illegal content (total)" },
+  { key: "tos",        short: "Own: terms",       full: "Own-initiative actions against ToS violations",        art: "Art. 15(1)(d)", label: "Own-initiative actions against ToS violations (total)" },
+  { key: "complaints", short: "Complaints",       full: "Internal complaints submitted (total)",                art: "Art. 20",       label: "Internal complaints submitted (total)" },
+  { key: "disputes",   short: "Disputes",         full: "Out-of-court disputes, share implemented",             art: "Art. 24(1)(a)", label: "Out-of-court disputes — share implemented" },
+  { key: "misuse",     short: "Misuse",           full: "Article 23 suspensions for manifestly illegal content", art: "Art. 24(1)(b)", label: "Article 23 suspensions for manifestly illegal content" },
+  { key: "mods",       short: "Moderators",       full: "Total moderator headcount",                            art: "Art. 42(2)(a)", label: "Total moderator headcount" },
+  { key: "langs",      short: "All 24 languages", full: "Moderators reported for all 24 EU official languages", art: "Art. 42(2)(a)", label: "Moderators reported for all 24 EU official languages", completeness: 24 },
+];
+
+const byKey = new Map();
+for (const r of coverage) {
+  byKey.set(`${r.provider_slug}||${r.article_reference}||${r.disclosure_label}`, r);
+}
+
+function toNum(v) {
+  if (v === null || v === undefined || v === "null" || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+// state: 2 reported, 1 partial, 0 not present
+function deriveCell(col, row) {
+  if (!row) return { state: 0, value: null };
+  const reported = row.is_reported === true || row.is_reported === "true";
+  const val = toNum(row.value_if_reported);
+  if (col.completeness) {
+    if (reported) return { state: 2, value: col.completeness };
+    if (val && val > 0) return { state: 1, value: val };
+    return { state: 0, value: null };
+  }
+  return reported ? { state: 2, value: val } : { state: 0, value: null };
+}
+
+// One row per provider present in coverage, sorted alphabetically.
+const provMap = new Map();
+for (const r of coverage) {
+  if (!provMap.has(r.provider_slug)) {
+    provMap.set(r.provider_slug, {
+      slug: r.provider_slug,
+      name: r.provider_name,
+      sector: sectorBySlug.get(r.provider_slug) || "Other",
+    });
+  }
+}
+const providers = [...provMap.values()].sort((a, b) => a.name.localeCompare(b.name));
+for (const p of providers) {
+  p.cells = COLUMNS.map((col) => ({ ...deriveCell(col, byKey.get(`${p.slug}||${col.art}||${col.label}`)), col }));
+}
+
+// Sectors present, most-populated first.
+const sectorCounts = {};
+for (const p of providers) sectorCounts[p.sector] = (sectorCounts[p.sector] || 0) + 1;
+const sectors = Object.keys(sectorCounts).sort((a, b) => sectorCounts[b] - sectorCounts[a]);
+
+const STATE = { 2: "Reported", 1: "Partial", 0: "Not present" };
+const CLS = { 2: "full", 1: "part", 0: "none" };
+const fmt = (n) => (n == null ? "" : Number(n).toLocaleString("en-GB"));
+
+function detailFor(col, cell) {
+  if (col.completeness) {
+    if (cell.state === 2) return `Reported for all ${col.completeness}`;
+    if (cell.state === 1) return `Reported for ${cell.value} of ${col.completeness}`;
+    return "Not present";
+  }
+  if (cell.state === 2) return cell.value == null ? "Reported" : `Reported · ${fmt(cell.value)}`;
+  return "Not present";
+}
+---
+
+<Layout
+  title="Report coverage | RTFP"
+  description="Which figures each platform's H2 2025 DSA transparency report presents, in full, in part, or not at all."
+>
+  <div class="coverage">
+    <p class="eyebrow">Report coverage</p>
+    <h1>What each platform's report contains</h1>
+    <p class="standfirst">
+      The harmonised template asks every platform the same questions. Whether a field is filled
+      depends on the service, and an empty field is not always a gap. The regulation itself says a
+      requirement that does not apply to a provider should be left blank. This grid shows which
+      figures each report presents in full, in part, or not at all. 
+    </p>
+
+    <div class="sectors" id="sectors">
+      <button data-sec="All sectors" aria-pressed="true">All sectors <span class="ct">{providers.length}</span></button>
+      {sectors.map((s) => (
+        <button data-sec={s} aria-pressed="false">{s} <span class="ct">{sectorCounts[s]}</span></button>
+      ))}
+    </div>
+
+    <div class="legend">
+      <span><i class="swatch full"></i>Reported</span>
+      <span><i class="swatch part"></i>Partial</span>
+      <span><i class="swatch none"></i>Not present</span>
+    </div>
+
+    <details class="defs">
+      <summary>What these mean</summary>
+      <dl>
+        <dt>Reported</dt>
+        <dd>The figures the template asks for are present. A reported zero counts. A nil return is data.</dd>
+        <dt>Partial</dt>
+        <dd>Reported for some but not all of what the field covers. For the language and Member State
+          columns, the tooltip shows how many of the 24 or 27.</dd>
+        <dt>Not present</dt>
+        <dd>No figures appear. Under Implementing Regulation 2024/2835, a requirement that does not
+          apply to a service is left blank, so an empty cell is not necessarily an omission.</dd>
+      </dl>
+    </details>
+
+    <div class="scroll">
+      <table aria-label="Report coverage by platform and template field">
+        <thead>
+          <tr>
+            <th class="corner">Platform \ field</th>
+            {COLUMNS.map((c, i) => (
+              <th data-col={i}><span class="col-label">{c.short}</span></th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {providers.map((p) => (
+            <tr data-sector={p.sector}>
+              <th scope="row">{p.name}</th>
+              {p.cells.map((cell, i) => (
+                <td data-col={i}>
+                  <span
+                    class:list={["cell", CLS[cell.state]]}
+                    tabindex="0"
+                    data-name={p.name}
+                    data-field={cell.col.full}
+                    data-art={cell.col.art}
+                    data-state={STATE[cell.state]}
+                    data-detail={detailFor(cell.col, cell)}
+                  ></span>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="source">
+      Source: RTFP, from the platforms' H2 2025 DSA transparency filings. The grid records whether
+      figures are present for each field, not how large they are or how well a platform moderates. An
+      empty cell means no figures were presented. Under the regulation's own instructions a
+      requirement that does not apply to a service is left blank, so it is not necessarily a gap.
+    </p>
+
+    <div class="tip" id="tip"></div>
+  </div>
+</Layout>
+
+<style>
+  .coverage { --cell-full: #292524; --cell-part: #b8b2ab; --cell-none: #fdfdfc; }
+  .coverage .eyebrow { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.6rem; }
+  .coverage h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.5rem; max-width: 38ch; }
+  .coverage .standfirst { font-size: 1rem; color: var(--ink-dim); margin: 0 0 0.4rem; max-width: 66ch; }
+  .coverage .takeaway { font-size: 0.95rem; color: var(--ink); margin: 0.9rem 0 1.3rem; max-width: 62ch; padding-left: 0.85rem; border-left: 2px solid var(--ink); }
+
+  .coverage .sectors { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+  .coverage .sectors button { font: inherit; font-size: 0.8rem; color: var(--ink-dim); background: none; border: 1px solid var(--border); border-radius: 999px; padding: 0.25rem 0.75rem; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+  .coverage .sectors button .ct { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .coverage .sectors button:hover { color: var(--ink); border-color: var(--ink-faint); }
+  .coverage .sectors button[aria-pressed="true"] { color: var(--bg); background: var(--ink); border-color: var(--ink); }
+  .coverage .sectors button[aria-pressed="true"] .ct { color: #d6d3d1; }
+
+  .coverage .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+  .coverage .legend span { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--ink-dim); }
+  .coverage .swatch { width: 0.85rem; height: 0.85rem; border-radius: 2px; border: 1px solid var(--border); flex: none; }
+  .coverage .swatch.full { background: var(--cell-full); border-color: var(--cell-full); }
+  .coverage .swatch.part { background: var(--cell-part); border-color: var(--cell-part); }
+  .coverage .swatch.none { background: var(--cell-none); }
+
+  .coverage .defs { margin: 0 0 1.1rem; font-size: 0.82rem; color: var(--ink-dim); max-width: 66ch; }
+  .coverage .defs summary { cursor: pointer; color: var(--ink-faint); font-size: 0.78rem; }
+  .coverage .defs dl { margin: 0.6rem 0 0; }
+  .coverage .defs dt { font-weight: 600; color: var(--ink); margin-top: 0.55rem; }
+  .coverage .defs dd { margin: 0.1rem 0 0; }
+
+  .coverage .scroll { overflow-x: auto; padding-bottom: 0.5rem; }
+  .coverage table { border-collapse: separate; border-spacing: 0; font-size: 0.82rem; }
+  .coverage thead th { vertical-align: bottom; font-weight: 500; color: var(--ink-dim); padding: 0 0 0.55rem; text-align: center; }
+  .coverage thead th.corner { text-align: left; vertical-align: bottom; color: var(--ink-faint); font-weight: 400; font-size: 0.72rem; padding-left: 0.1rem; }
+  .coverage thead .col-label { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; line-height: 1; font-size: 0.74rem; margin: 0 auto; cursor: default; max-height: 9rem; }
+  .coverage tbody th { text-align: left; font-weight: 400; color: var(--ink); white-space: nowrap; padding: 0 0.9rem 0 0.1rem; position: sticky; left: 0; background: var(--bg); z-index: 1; }
+  .coverage tbody tr:hover th { font-weight: 500; }
+
+  .coverage td { padding: 2px; }
+  .coverage .cell { width: 1.55rem; height: 1.55rem; border-radius: 2px; display: block; cursor: default; border: 1px solid var(--border); transition: outline 0.1s; }
+  .coverage .cell.full { background: var(--cell-full); border-color: var(--cell-full); }
+  .coverage .cell.part { background: var(--cell-part); border-color: var(--cell-part); }
+  .coverage .cell.none { background: var(--cell-none); }
+  .coverage .cell:hover, .coverage .cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; position: relative; z-index: 3; }
+  .coverage td.dim .cell { opacity: 0.28; }
+  .coverage th.dim { opacity: 0.4; }
+
+  .coverage .tip { position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: #fafaf9; padding: 0.55rem 0.7rem; border-radius: 6px; font-size: 0.78rem; line-height: 1.35; max-width: 18rem; box-shadow: 0 6px 22px rgba(0,0,0,0.18); opacity: 0; transition: opacity 0.1s; }
+  .coverage .tip.show { opacity: 1; }
+  .coverage .tip .t-dim { color: #d6d3d1; font-size: 0.72rem; }
+  .coverage .tip .t-state { margin-top: 0.25rem; font-weight: 600; }
+  .coverage .tip .t-note { margin-top: 0.2rem; color: #d6d3d1; font-weight: 400; }
+
+  .coverage .source { margin-top: 1.4rem; font-size: 0.78rem; color: var(--ink-faint); max-width: 68ch; line-height: 1.5; }
+</style>
+
+<script>
+  const root = document.querySelector(".coverage");
+  if (root) {
+    const grid = root.querySelector("table");
+    const tip = root.querySelector("#tip");
+
+    function showTip(cell) {
+      tip.innerHTML =
+        "<div><b>" + cell.dataset.name + "</b></div>" +
+        "<div class='t-dim'>" + cell.dataset.field + " · " + cell.dataset.art + "</div>" +
+        "<div class='t-state'>" + cell.dataset.state + "</div>" +
+        "<div class='t-note'>" + cell.dataset.detail + "</div>";
+      tip.classList.add("show");
+      const c = cell.closest("td").dataset.col;
+      grid.querySelectorAll("[data-col]").forEach((el) => {
+        el.classList.toggle("dim", el.dataset.col !== c);
+      });
+    }
+    function moveTip(e) {
+      let x = e.clientX + 14, y = e.clientY + 14;
+      const w = tip.offsetWidth, h = tip.offsetHeight;
+      if (x + w > window.innerWidth - 8) x = e.clientX - w - 14;
+      if (y + h > window.innerHeight - 8) y = e.clientY - h - 14;
+      tip.style.left = x + "px"; tip.style.top = y + "px";
+    }
+    function hideTip() {
+      tip.classList.remove("show");
+      grid.querySelectorAll(".dim").forEach((el) => el.classList.remove("dim"));
+    }
+
+    grid.addEventListener("mouseover", (e) => { const c = e.target.closest(".cell"); if (c) showTip(c); });
+    grid.addEventListener("mousemove", (e) => { if (tip.classList.contains("show")) moveTip(e); });
+    grid.addEventListener("mouseout", (e) => { if (e.target.closest(".cell")) hideTip(); });
+    grid.addEventListener("focusin", (e) => {
+      const c = e.target.closest(".cell");
+      if (c) { const b = c.getBoundingClientRect(); showTip(c); tip.style.left = (b.right + 8) + "px"; tip.style.top = b.top + "px"; }
+    });
+    grid.addEventListener("focusout", hideTip);
+
+    const sectors = root.querySelector("#sectors");
+    sectors.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      const sec = btn.dataset.sec;
+      sectors.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+      root.querySelectorAll("tbody tr").forEach((tr) => {
+        tr.style.display = (sec === "All sectors" || tr.dataset.sector === sec) ? "" : "none";
+      });
+    });
+  }
+</script>
