@@ -19,7 +19,7 @@ const toNum = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-const BASIS_LABEL = { illegal: "Illegal content", tos: "Terms of service", terms: "Terms of service", total: "All own-initiative", all: "All own-initiative" };
+const BASIS_LABEL = { illegal: "Illegal content", tc: "Terms and conditions", tos: "Terms of service", terms: "Terms of service", total: "All own-initiative", all: "All own-initiative" };
 const basisLabel = (b) => BASIS_LABEL[b] || (b ? b.charAt(0).toUpperCase() + b.slice(1) : "Own-initiative");
 
 const bases = [...new Set(raw.map((r) => r.basis).filter(Boolean))];
