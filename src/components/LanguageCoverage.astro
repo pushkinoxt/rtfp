@@ -1,0 +1,320 @@
+---
+// src/components/LanguageCoverage.astro
+// Moderator language coverage, wired to human_moderators_by_language at build
+// time. A coverage grid, not a magnitude chart: a moderator who covers several
+// languages is counted under each, so the per-language figures overlap and a
+// stacked or composition bar would be meaningless. Three honest cell states.
+// Covered (a moderator reported), listed but none reported (zero or blank), and
+// not listed at all. Total headcount is deliberately not shown here.
+
+import { fetchFromSupabase } from "../lib/supabase.js";
+
+const rows = await fetchFromSupabase("human_moderators_by_language", {
+  select: "provider_slug,provider_name,period_label,language_code,language_name,is_eu_official,moderators",
+});
+
+// Roster and sectors from the same source the other charts use, so a platform
+// that filed no moderator data would still appear rather than vanish.
+const overview = await fetchFromSupabase("provider_overview", {
+  select: "provider_slug,provider_name,service_category",
+});
+
+const toNum = (v) => {
+  if (v === null || v === undefined || v === "null" || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+const isEu = (v) => v === true || v === "true";
+
+// Columns: the 24 EU official languages, taken from the data (at least one
+// platform lists all 24), ordered by language name.
+const langMap = new Map();
+for (const r of rows) {
+  if (isEu(r.is_eu_official) && r.language_code && r.language_code !== "total") {
+    if (!langMap.has(r.language_code)) langMap.set(r.language_code, r.language_name || r.language_code);
+  }
+}
+const COLUMNS = [...langMap.entries()]
+  .map(([code, name]) => ({ code, name }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+// One value per (provider, language). A present key means the language appears
+// in that filing; a null value means it was listed with no figure.
+const cellMap = new Map();
+for (const r of rows) {
+  if (r.language_code === "total") continue;
+  cellMap.set(`${r.provider_slug}||${r.language_code}`, toNum(r.moderators));
+}
+
+const provMap = new Map();
+for (const p of overview) {
+  if (!provMap.has(p.provider_slug)) {
+    provMap.set(p.provider_slug, { slug: p.provider_slug, name: p.provider_name, sector: p.service_category || "Other" });
+  }
+}
+const providers = [...provMap.values()].sort((a, b) => a.name.localeCompare(b.name));
+
+// state: 2 covered, 1 listed but none reported, 0 not listed
+function deriveCell(slug, code) {
+  const key = `${slug}||${code}`;
+  if (!cellMap.has(key)) return { state: 0 };
+  const v = cellMap.get(key);
+  if (v === null) return { state: 1, blank: true };
+  if (v > 0) return { state: 2, value: v };
+  return { state: 1, value: 0 };
+}
+
+for (const p of providers) {
+  p.cells = COLUMNS.map((c) => ({ ...deriveCell(p.slug, c.code), col: c }));
+  p.covered = p.cells.filter((c) => c.state === 2).length;
+}
+
+const sectorCounts = {};
+for (const p of providers) sectorCounts[p.sector] = (sectorCounts[p.sector] || 0) + 1;
+const sectors = Object.keys(sectorCounts).sort((a, b) => sectorCounts[b] - sectorCounts[a]);
+
+const STATE = { 2: "Moderators reported", 1: "Listed, none reported", 0: "Not listed" };
+const CLS = { 2: "full", 1: "part", 0: "none" };
+const fmt = (n) => (n == null ? "" : Number(n).toLocaleString("en-GB"));
+
+function detailFor(cell) {
+  if (cell.state === 2) return `${fmt(cell.value)} ${cell.value === 1 ? "moderator" : "moderators"} reported`;
+  if (cell.state === 1) return cell.blank ? "Listed, no figure given" : "0 moderators reported";
+  return "Not listed in this filing";
+}
+
+const TOTAL_LANGS = COLUMNS.length;
+---
+
+<div class="langcov">
+  <p class="eyebrow">Moderation by language</p>
+  <h1>Which EU languages each platform reports moderators for</h1>
+  <p class="standfirst">
+    The reports state how many moderators each platform has with expertise in each language. A
+    moderator who covers several languages is counted under each, so these figures overlap and are
+    not a headcount. This grid shows which of the {TOTAL_LANGS} EU official languages each platform
+    reported moderators for, and where it listed a language but reported none for it.
+  </p>
+
+  <div class="sectors" id="sectors">
+    <button data-sec="All sectors" aria-pressed="true">All sectors <span class="ct">{providers.length}</span></button>
+    {sectors.map((s) => (
+      <button data-sec={s} aria-pressed="false">{s} <span class="ct">{sectorCounts[s]}</span></button>
+    ))}
+  </div>
+
+  <div class="controls" id="sortby">
+    <span class="sort-lab">Sort</span>
+    <button data-sort="alpha" aria-pressed="true">A to Z</button>
+    <button data-sort="covered" aria-pressed="false">Languages covered</button>
+  </div>
+
+  <div class="legend">
+    <span><i class="swatch full"></i>Moderators reported</span>
+    <span><i class="swatch part"></i>Listed, none reported</span>
+    <span><i class="swatch none"></i>Not listed</span>
+  </div>
+
+  <details class="defs">
+    <summary>What these mean</summary>
+    <dl>
+      <dt>Moderators reported</dt>
+      <dd>The platform reported at least one moderator with expertise in this language.</dd>
+      <dt>Listed, none reported</dt>
+      <dd>The language appears in the filing but with no moderators, either an explicit zero or a
+        blank figure. The tooltip shows which.</dd>
+      <dt>Not listed</dt>
+      <dd>The language does not appear in the filing at all. Under Implementing Regulation 2024/2835
+        a language a service does not operate in may simply be absent, so this is not necessarily an
+        omission.</dd>
+    </dl>
+  </details>
+
+  <div class="scroll">
+    <table aria-label="Moderator language coverage by platform">
+      <thead>
+        <tr>
+          <th class="corner">Platform \ language</th>
+          {COLUMNS.map((c, i) => (
+            <th data-col={i} title={c.name}><span class="lang-code">{c.code.toUpperCase()}</span></th>
+          ))}
+          <th class="sum-head" title={`EU official languages covered, of ${TOTAL_LANGS}`}><span class="sum-label">Covered</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {providers.map((p) => (
+          <tr data-sector={p.sector} data-name={p.name} data-covered={p.covered}>
+            <th scope="row">{p.name}</th>
+            {p.cells.map((cell, i) => (
+              <td data-col={i}>
+                <span
+                  class:list={["cell", CLS[cell.state]]}
+                  tabindex="0"
+                  data-name={p.name}
+                  data-lang={`${cell.col.name} (${cell.col.code.toUpperCase()})`}
+                  data-state={STATE[cell.state]}
+                  data-detail={detailFor(cell)}
+                ></span>
+              </td>
+            ))}
+            <td class="sum"><span class="num">{p.covered}</span><span class="den">/{TOTAL_LANGS}</span></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="source">
+    Source: RTFP, from the platforms' H2 2025 DSA transparency filings, Article 42(2)(a). A filled
+    cell means the platform reported at least one moderator with expertise in that language. The
+    figures count linguistic expertise rather than dedicated staff, and a moderator may be counted
+    under more than one language. Some platforms also reported languages outside the EU official
+    set, which are not shown here.
+  </p>
+
+  <div class="tip" id="tip"></div>
+</div>
+
+<style>
+  .langcov { --cell-full: #292524; --cell-part: #b8b2ab; --cell-none: #fdfdfc; }
+  .langcov .eyebrow { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.6rem; }
+  .langcov h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.5rem; max-width: 40ch; }
+  .langcov .standfirst { font-size: 1rem; color: var(--ink-dim); margin: 0 0 0.4rem; max-width: 66ch; }
+
+  .langcov .sectors { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 1rem 0 0.55rem; }
+  .langcov .sectors button { font: inherit; font-size: 0.8rem; color: var(--ink-dim); background: none; border: 1px solid var(--border); border-radius: 999px; padding: 0.25rem 0.75rem; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+  .langcov .sectors button .ct { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .langcov .sectors button:hover { color: var(--ink); border-color: var(--ink-faint); }
+  .langcov .sectors button[aria-pressed="true"] { color: var(--bg); background: var(--ink); border-color: var(--ink); }
+  .langcov .sectors button[aria-pressed="true"] .ct { color: #d6d3d1; }
+
+  .langcov .controls { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; margin: 0 0 0.7rem; }
+  .langcov .controls .sort-lab { font-size: 0.8rem; color: var(--ink-faint); }
+  .langcov .controls button { font: inherit; font-size: 0.8rem; color: var(--ink-dim); background: none; border: none; padding: 0.1rem 0; cursor: pointer; border-bottom: 1.5px solid transparent; transition: color 0.15s, border-color 0.15s; }
+  .langcov .controls button:hover { color: var(--ink); }
+  .langcov .controls button[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+
+  .langcov .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+  .langcov .legend span { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--ink-dim); }
+  .langcov .swatch { width: 0.85rem; height: 0.85rem; border-radius: 2px; border: 1px solid var(--border); flex: none; }
+  .langcov .swatch.full { background: var(--cell-full); border-color: var(--cell-full); }
+  .langcov .swatch.part { background: var(--cell-part); border-color: var(--cell-part); }
+  .langcov .swatch.none { background: var(--cell-none); }
+
+  .langcov .defs { margin: 0 0 1.1rem; font-size: 0.82rem; color: var(--ink-dim); max-width: 66ch; }
+  .langcov .defs summary { cursor: pointer; color: var(--ink-faint); font-size: 0.78rem; }
+  .langcov .defs dl { margin: 0.6rem 0 0; }
+  .langcov .defs dt { font-weight: 600; color: var(--ink); margin-top: 0.55rem; }
+  .langcov .defs dd { margin: 0.1rem 0 0; }
+
+  .langcov .scroll { overflow-x: auto; padding-bottom: 0.5rem; }
+  .langcov table { border-collapse: separate; border-spacing: 0; font-size: 0.82rem; }
+  .langcov thead th { vertical-align: bottom; font-weight: 500; color: var(--ink-dim); padding: 0 0 0.5rem; text-align: center; }
+  .langcov thead th.corner { text-align: left; color: var(--ink-faint); font-weight: 400; font-size: 0.72rem; padding-left: 0.1rem; white-space: nowrap; }
+  .langcov thead .lang-code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.7rem; letter-spacing: 0.02em; color: var(--ink-faint); cursor: default; }
+  .langcov thead th[data-col] { width: 1.45rem; }
+  .langcov thead .sum-head { padding: 0 0 0.5rem 0.5rem; }
+  .langcov thead .sum-label { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-size: 0.7rem; color: var(--ink-faint); line-height: 1; }
+  .langcov tbody th { text-align: left; font-weight: 400; color: var(--ink); white-space: nowrap; padding: 0 0.9rem 0 0.1rem; position: sticky; left: 0; background: var(--bg); z-index: 1; }
+  .langcov tbody tr:hover th { font-weight: 500; }
+
+  .langcov td { padding: 2px; }
+  .langcov .cell { width: 1.3rem; height: 1.3rem; border-radius: 2px; display: block; margin: 0 auto; cursor: default; border: 1px solid var(--border); transition: outline 0.1s; }
+  .langcov .cell.full { background: var(--cell-full); border-color: var(--cell-full); }
+  .langcov .cell.part { background: var(--cell-part); border-color: var(--cell-part); }
+  .langcov .cell.none { background: var(--cell-none); }
+  .langcov .cell:hover, .langcov .cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; position: relative; z-index: 3; }
+  .langcov td.dim .cell { opacity: 0.28; }
+  .langcov th.dim { opacity: 0.4; }
+
+  .langcov td.sum { padding-left: 0.6rem; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .langcov td.sum .num { color: var(--ink); font-weight: 500; }
+  .langcov td.sum .den { color: var(--ink-faint); font-size: 0.78rem; }
+
+  .langcov .tip { position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: #fafaf9; padding: 0.55rem 0.7rem; border-radius: 6px; font-size: 0.78rem; line-height: 1.35; max-width: 18rem; box-shadow: 0 6px 22px rgba(0,0,0,0.18); opacity: 0; transition: opacity 0.1s; }
+  .langcov .tip.show { opacity: 1; }
+  .langcov .tip .t-dim { color: #d6d3d1; font-size: 0.72rem; }
+  .langcov .tip .t-state { margin-top: 0.25rem; font-weight: 600; }
+  .langcov .tip .t-note { margin-top: 0.2rem; color: #d6d3d1; font-weight: 400; }
+
+  .langcov .source { margin-top: 1.4rem; font-size: 0.78rem; color: var(--ink-faint); max-width: 68ch; line-height: 1.5; }
+
+  @media (max-width: 640px) {
+    .langcov tbody th { max-width: 7rem; overflow: hidden; text-overflow: ellipsis; }
+  }
+</style>
+
+<script>
+  const root = document.querySelector(".langcov");
+  if (root) {
+    const grid = root.querySelector("table");
+    const tbody = grid.querySelector("tbody");
+    const tip = root.querySelector("#tip");
+    const sectors = root.querySelector("#sectors");
+    const sortby = root.querySelector("#sortby");
+    const allRows = Array.from(tbody.querySelectorAll("tr"));
+    const state = { sector: "All sectors", sort: "alpha" };
+
+    function showTip(cell) {
+      tip.innerHTML =
+        "<div><b>" + cell.dataset.name + "</b></div>" +
+        "<div class='t-dim'>" + cell.dataset.lang + "</div>" +
+        "<div class='t-state'>" + cell.dataset.state + "</div>" +
+        "<div class='t-note'>" + cell.dataset.detail + "</div>";
+      tip.classList.add("show");
+      const c = cell.closest("td").dataset.col;
+      grid.querySelectorAll("[data-col]").forEach((el) => {
+        el.classList.toggle("dim", el.dataset.col !== c);
+      });
+    }
+    function moveTip(e) {
+      let x = e.clientX + 14, y = e.clientY + 14;
+      const w = tip.offsetWidth, h = tip.offsetHeight;
+      if (x + w > window.innerWidth - 8) x = e.clientX - w - 14;
+      if (y + h > window.innerHeight - 8) y = e.clientY - h - 14;
+      tip.style.left = x + "px"; tip.style.top = y + "px";
+    }
+    function hideTip() {
+      tip.classList.remove("show");
+      grid.querySelectorAll(".dim").forEach((el) => el.classList.remove("dim"));
+    }
+
+    grid.addEventListener("mouseover", (e) => { const c = e.target.closest(".cell"); if (c) showTip(c); });
+    grid.addEventListener("mousemove", (e) => { if (tip.classList.contains("show")) moveTip(e); });
+    grid.addEventListener("mouseout", (e) => { if (e.target.closest(".cell")) hideTip(); });
+    grid.addEventListener("focusin", (e) => {
+      const c = e.target.closest(".cell");
+      if (c) { const b = c.getBoundingClientRect(); showTip(c); tip.style.left = (b.right + 8) + "px"; tip.style.top = b.top + "px"; }
+    });
+    grid.addEventListener("focusout", hideTip);
+
+    function apply() {
+      const visible = allRows
+        .filter((tr) => state.sector === "All sectors" || tr.dataset.sector === state.sector)
+        .sort((a, b) => {
+          if (state.sort === "covered") {
+            const d = Number(b.dataset.covered) - Number(a.dataset.covered);
+            if (d !== 0) return d;
+          }
+          return a.dataset.name.localeCompare(b.dataset.name);
+        });
+      allRows.forEach((tr) => (tr.style.display = "none"));
+      visible.forEach((tr) => { tr.style.display = ""; tbody.appendChild(tr); });
+    }
+
+    sectors.addEventListener("click", (e) => {
+      const btn = e.target.closest("button"); if (!btn) return;
+      state.sector = btn.dataset.sec;
+      sectors.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+      apply();
+    });
+    sortby.addEventListener("click", (e) => {
+      const btn = e.target.closest("button"); if (!btn) return;
+      state.sort = btn.dataset.sort;
+      sortby.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+      apply();
+    });
+
+    apply();
+  }
+</script>
