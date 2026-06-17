@@ -1,0 +1,318 @@
+---
+// src/components/ActionMix.astro
+// Within-platform mix of own-initiative measures, split across four restriction
+// types. Wired to restriction_type_breakdown at build time. Each bar is
+// normalised to its own sum of the four families, so it shows composition, not
+// magnitude. Neutral alphabetical order. A basis toggle appears only if the view
+// holds more than one basis (illegal, terms and conditions).
+
+import { fetchFromSupabase } from "../lib/supabase.js";
+
+const raw = await fetchFromSupabase("restriction_type_breakdown", {
+  select: "provider_slug,provider_name,period_label,basis,measures_total,visibility_actions,monetary_actions,service_actions,account_actions",
+});
+const overview = await fetchFromSupabase("provider_overview", { select: "provider_slug,service_category" });
+const sectorBySlug = new Map(overview.map((p) => [p.provider_slug, p.service_category || "Other"]));
+
+const toNum = (v) => {
+  if (v === null || v === undefined || v === "null" || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const BASIS_LABEL = { illegal: "Illegal content", tc: "Terms and conditions", tos: "Terms of service", terms: "Terms of service", total: "All own-initiative", all: "All own-initiative" };
+const basisLabel = (b) => BASIS_LABEL[b] || (b ? b.charAt(0).toUpperCase() + b.slice(1) : "Own-initiative");
+
+const bases = [...new Set(raw.map((r) => r.basis).filter(Boolean))];
+bases.sort((a, b) => (a === "illegal" ? -1 : b === "illegal" ? 1 : a.localeCompare(b)));
+const defaultBasis = bases.includes("illegal") ? "illegal" : bases[0];
+
+const FAMILIES = [
+  { key: "visibility_actions", label: "Visibility", cls: "vis" },
+  { key: "monetary_actions",   label: "Monetary",   cls: "mon" },
+  { key: "service_actions",    label: "Service",    cls: "svc" },
+  { key: "account_actions",    label: "Account",    cls: "acc" },
+];
+
+// Four honest cases: a real mix (bar), reported zero (no mix applies), a total
+// with no type breakdown (total only), and not reported.
+function classify(r) {
+  const total = toNum(r.measures_total);
+  const fams = FAMILIES.map((f) => ({ ...f, n: toNum(r[f.key]) ?? 0 }));
+  const sum = fams.reduce((a, f) => a + f.n, 0);
+  if (total === null) return { kind: "none" };
+  if (total === 0) return { kind: "zero" };
+  if (sum === 0) return { kind: "total-only", total };
+  const segs = fams.map((f) => ({ ...f, pct: (f.n / sum) * 100 }));
+  return { kind: "mix", total, sum, segs };
+}
+
+const rows = raw
+  .map((r) => ({
+    name: r.provider_name,
+    basis: r.basis,
+    sector: sectorBySlug.get(r.provider_slug) || "Other",
+    ...classify(r),
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+const fmt = (n) => (n == null ? "" : Number(n).toLocaleString("en-GB"));
+const pct1 = (n) => {
+  if (n > 0 && n < 0.05) return "<0.1%";
+  if (n < 100 && n >= 99.95) return ">99.9%";
+  const r = Math.round(n * 10) / 10;
+  return `${r.toLocaleString("en-GB")}%`;
+};
+const markerFor = (r) =>
+  r.kind === "zero" ? "reported 0 measures"
+  : r.kind === "none" ? "not reported"
+  : r.kind === "total-only" ? "total only, no breakdown"
+  : "";
+
+// Per-family figures stashed for the tooltip on mix rows.
+const famsData = (r) =>
+  r.kind === "mix"
+    ? JSON.stringify(r.segs.map((s) => ({ label: s.label, count: fmt(s.n), pct: pct1(s.pct) })))
+    : "";
+
+const sectorCounts = {};
+for (const r of rows) if (r.basis === defaultBasis) sectorCounts[r.sector] = (sectorCounts[r.sector] || 0) + 1;
+const sectors = Object.keys(sectorCounts).sort((a, b) => sectorCounts[b] - sectorCounts[a]);
+const defaultCount = rows.filter((r) => r.basis === defaultBasis).length;
+---
+
+<div class="actionmix" data-default-basis={defaultBasis}>
+  <p class="eyebrow">Action mix</p>
+  <h1>What kind of action each platform takes</h1>
+  <p class="standfirst">
+    Of the measures a platform took on its own initiative, this is how they divide across
+    visibility, monetary, service, and account restrictions. Each bar shows the mix within one
+    platform rather than how much that platform did, and because platforms count differently the
+    bars are not strictly comparable.
+  </p>
+
+  {bases.length > 1 && (
+    <div class="bases" id="bases">
+      {bases.map((b) => (
+        <button data-basis={b} aria-pressed={b === defaultBasis ? "true" : "false"}>{basisLabel(b)}</button>
+      ))}
+    </div>
+  )}
+
+  <div class="sectors" id="sectors">
+    <button data-sec="All sectors" aria-pressed="true">All sectors <span class="ct">{defaultCount}</span></button>
+    {sectors.map((s) => (
+      <button data-sec={s} aria-pressed="false">{s} <span class="ct">{sectorCounts[s]}</span></button>
+    ))}
+  </div>
+
+  <div class="legend" aria-hidden="true">
+    {FAMILIES.map((f) => (
+      <span class="lg"><span class={`sw sw-${f.cls}`}></span>{f.label}</span>
+    ))}
+  </div>
+
+  <div class="am-list" id="amlist">
+    <div class="am-row am-axis" aria-hidden="true">
+      <div class="am-label"></div>
+      <div class="am-track scale">
+        <span style="left:0">0%</span>
+        <span style="left:25%">25</span>
+        <span style="left:50%">50</span>
+        <span style="left:75%">75</span>
+        <span style="left:100%">100%</span>
+      </div>
+    </div>
+
+    {rows.map((r) => (
+      <div
+        class="am-row data"
+        data-basis={r.basis}
+        data-sector={r.sector}
+        data-name={r.name}
+        data-blabel={basisLabel(r.basis)}
+        data-kind={r.kind}
+        data-fams={famsData(r)}
+        data-total={r.kind === "mix" || r.kind === "total-only" ? fmt(r.total) : ""}
+        style={r.basis === defaultBasis ? "" : "display:none"}
+      >
+        <div class="am-label">{r.name}</div>
+        <div class="am-track">
+          {r.kind === "mix"
+            ? <div class="bar">{r.segs.map((s) => (<span class={`seg seg-${s.cls}`} style={`width:${s.pct}%`}></span>))}</div>
+            : <span class="am-empty">{markerFor(r)}</span>}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <p class="source">
+    Source: RTFP, from the platforms' H2 2025 DSA transparency filings, own-initiative measures
+    under Article 15(1)(c), grouped by restriction type. The four figures are shown as each platform
+    published them and do not always sum to the reported measures total. A platform that reported
+    zero own-initiative measures has no mix to show, and one that presented no figures is marked not
+    reported.
+  </p>
+
+  <div class="defs">
+    <p class="defs-head">The four restriction types</p>
+    <div class="def"><span class="dt">Visibility</span><span class="dd">Content removed, access disabled or restricted, demoted, age-restricted, interaction restricted, or labelled.</span></div>
+    <div class="def"><span class="dt">Monetary</span><span class="dd">Payment or monetisation suspended or ended.</span></div>
+    <div class="def"><span class="dt">Service</span><span class="dd">Provision of the service suspended or ended.</span></div>
+    <div class="def"><span class="dt">Account</span><span class="dd">The user account suspended or ended.</span></div>
+  </div>
+
+  <div class="tip" id="tip"></div>
+</div>
+
+<style>
+  .actionmix { --seg-vis: #44403c; --seg-mon: #78716c; --seg-svc: #a8a29e; --seg-acc: #d6d3d1; }
+  .actionmix .eyebrow { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.6rem; }
+  .actionmix h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.5rem; max-width: 38ch; }
+  .actionmix .standfirst { font-size: 1rem; color: var(--ink-dim); margin: 0 0 0.4rem; max-width: 66ch; }
+
+  .actionmix .bases, .actionmix .sectors { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .actionmix .bases { margin: 1rem 0 0.55rem; }
+  .actionmix .sectors { margin: 0 0 0.55rem; }
+  .actionmix .bases button, .actionmix .sectors button { font: inherit; font-size: 0.8rem; color: var(--ink-dim); background: none; border: 1px solid var(--border); border-radius: 999px; padding: 0.25rem 0.75rem; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+  .actionmix .sectors button .ct { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .actionmix .bases button:hover, .actionmix .sectors button:hover { color: var(--ink); border-color: var(--ink-faint); }
+  .actionmix .bases button[aria-pressed="true"], .actionmix .sectors button[aria-pressed="true"] { color: var(--bg); background: var(--ink); border-color: var(--ink); }
+  .actionmix .sectors button[aria-pressed="true"] .ct { color: #d6d3d1; }
+
+  .actionmix .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin: 0.5rem 0 0.2rem; }
+  .actionmix .legend .lg { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: var(--ink-dim); }
+  .actionmix .legend .sw { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; flex: none; }
+  .actionmix .sw-vis { background: var(--seg-vis); }
+  .actionmix .sw-mon { background: var(--seg-mon); }
+  .actionmix .sw-svc { background: var(--seg-svc); }
+  .actionmix .sw-acc { background: var(--seg-acc); }
+
+  .actionmix .am-list { margin-top: 1.4rem; }
+  .actionmix .am-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.18rem 0; }
+  .actionmix .am-label { width: 10rem; flex: none; font-size: 0.85rem; text-align: right; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .actionmix .am-track { position: relative; flex: 1; height: 1.4rem; }
+  .actionmix .bar { display: flex; width: 100%; height: 100%; border-radius: 2px; overflow: hidden; }
+  .actionmix .seg { height: 100%; box-shadow: inset -1px 0 0 var(--bg); }
+  .actionmix .seg:last-child { box-shadow: none; }
+  .actionmix .seg-vis { background: var(--seg-vis); }
+  .actionmix .seg-mon { background: var(--seg-mon); }
+  .actionmix .seg-svc { background: var(--seg-svc); }
+  .actionmix .seg-acc { background: var(--seg-acc); }
+  .actionmix .am-empty { position: absolute; left: 0.2rem; top: 50%; transform: translateY(-50%); font-size: 0.76rem; color: var(--ink-faint); }
+  .actionmix .am-row:hover .am-label { font-weight: 500; }
+
+  .actionmix .am-axis { height: 1rem; margin-bottom: 0.6rem; }
+  .actionmix .am-axis .am-track { height: auto; }
+  .actionmix .am-axis .scale span { position: absolute; top: 0; font-size: 0.7rem; color: var(--ink-faint); transform: translateX(-50%); }
+  .actionmix .am-axis .scale span:first-child { transform: translateX(0); }
+  .actionmix .am-axis .scale span:last-child { transform: translateX(-100%); }
+
+  .actionmix .tip { position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: #fafaf9; padding: 0.55rem 0.7rem; border-radius: 6px; font-size: 0.78rem; line-height: 1.4; max-width: 20rem; box-shadow: 0 6px 22px rgba(0,0,0,0.18); opacity: 0; transition: opacity 0.1s; }
+  .actionmix .tip.show { opacity: 1; }
+  .actionmix .tip .t-dim { color: #d6d3d1; font-size: 0.72rem; margin-bottom: 0.25rem; }
+  .actionmix .tip .t-row { display: flex; justify-content: space-between; gap: 1rem; font-variant-numeric: tabular-nums; }
+  .actionmix .tip .t-row .t-lab { color: #e7e5e4; }
+  .actionmix .tip .t-note { margin-top: 0.25rem; }
+  .actionmix .tip .t-total { margin-top: 0.3rem; color: #a8a29e; font-size: 0.72rem; }
+
+  .actionmix .source { margin-top: 1.4rem; font-size: 0.78rem; color: var(--ink-faint); max-width: 68ch; line-height: 1.5; }
+
+  .actionmix .defs { margin-top: 1.1rem; max-width: 64ch; }
+  .actionmix .defs-head { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.5rem; }
+  .actionmix .def { display: grid; grid-template-columns: 6rem 1fr; gap: 0.6rem; padding: 0.18rem 0; font-size: 0.82rem; }
+  .actionmix .def .dt { color: var(--ink); font-weight: 500; }
+  .actionmix .def .dd { color: var(--ink-dim); line-height: 1.45; }
+
+  @media (max-width: 640px) {
+    .actionmix .am-label { width: 6.5rem; font-size: 0.8rem; }
+    .actionmix .def { grid-template-columns: 5rem 1fr; }
+  }
+</style>
+
+<script>
+  const root = document.querySelector(".actionmix");
+  if (root) {
+    const list = root.querySelector("#amlist");
+    const rows = Array.from(list.querySelectorAll(".am-row.data"));
+    const tip = root.querySelector("#tip");
+    const sectors = root.querySelector("#sectors");
+    const bases = root.querySelector("#bases");
+    const state = { basis: root.dataset.defaultBasis, sector: "All sectors" };
+
+    function visible(r) {
+      return r.dataset.basis === state.basis && (state.sector === "All sectors" || r.dataset.sector === state.sector);
+    }
+
+    function updateCounts() {
+      const counts = {}; let all = 0;
+      rows.forEach((r) => { if (r.dataset.basis === state.basis) { counts[r.dataset.sector] = (counts[r.dataset.sector] || 0) + 1; all++; } });
+      sectors.querySelectorAll("button").forEach((b) => {
+        const s = b.dataset.sec, ct = b.querySelector(".ct");
+        const n = s === "All sectors" ? all : (counts[s] || 0);
+        if (ct) ct.textContent = String(n);
+        b.style.display = (s !== "All sectors" && n === 0) ? "none" : "";
+      });
+    }
+
+    function apply() {
+      const v = rows.filter(visible).sort((a, b) => a.dataset.name.localeCompare(b.dataset.name));
+      rows.forEach((r) => (r.style.display = "none"));
+      v.forEach((r) => { r.style.display = ""; list.appendChild(r); });
+      updateCounts();
+    }
+
+    function showTip(r) {
+      const kind = r.dataset.kind;
+      let html = "<div><b>" + r.dataset.name + "</b></div>";
+      html += "<div class='t-dim'>Action mix \u00b7 " + r.dataset.blabel + "</div>";
+      if (kind === "mix") {
+        let fams = [];
+        try { fams = JSON.parse(r.dataset.fams || "[]"); } catch (e) { fams = []; }
+        fams.forEach((f) => {
+          html += "<div class='t-row'><span class='t-lab'>" + f.label + "</span><span>" + f.count + " (" + f.pct + ")</span></div>";
+        });
+        if (r.dataset.total) html += "<div class='t-total'>Reported total " + r.dataset.total + "</div>";
+      } else if (kind === "zero") {
+        html += "<div class='t-note'>Reported zero own-initiative measures, so no mix applies.</div>";
+      } else if (kind === "total-only") {
+        html += "<div class='t-note'>A measures total is reported but it is not broken down by type.</div>";
+        if (r.dataset.total) html += "<div class='t-total'>Reported total " + r.dataset.total + "</div>";
+      } else {
+        html += "<div class='t-note'>No figures presented for this basis.</div>";
+      }
+      tip.innerHTML = html;
+      tip.classList.add("show");
+    }
+    function moveTip(e) {
+      let x = e.clientX + 14, y = e.clientY + 14;
+      const w = tip.offsetWidth, h = tip.offsetHeight;
+      if (x + w > window.innerWidth - 8) x = e.clientX - w - 14;
+      if (y + h > window.innerHeight - 8) y = e.clientY - h - 14;
+      tip.style.left = x + "px"; tip.style.top = y + "px";
+    }
+    function hideTip() { tip.classList.remove("show"); }
+
+    list.addEventListener("mouseover", (e) => { const r = e.target.closest(".am-row.data"); if (r) showTip(r); });
+    list.addEventListener("mousemove", (e) => { if (tip.classList.contains("show")) moveTip(e); });
+    list.addEventListener("mouseout", (e) => { if (e.target.closest(".am-row.data")) hideTip(); });
+
+    sectors.addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      state.sector = b.dataset.sec;
+      sectors.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+      apply();
+    });
+
+    if (bases) bases.addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      state.basis = b.dataset.basis;
+      state.sector = "All sectors";
+      bases.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+      sectors.querySelectorAll("button").forEach((x, i) => x.setAttribute("aria-pressed", i === 0 ? "true" : "false"));
+      apply();
+    });
+
+    apply();
+  }
+</script>
