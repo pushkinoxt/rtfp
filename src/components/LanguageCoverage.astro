@@ -3,18 +3,20 @@
 // Moderator language coverage, wired to human_moderators_by_language at build
 // time. A coverage grid, not a magnitude chart: a moderator who covers several
 // languages is counted under each, so the per-language figures overlap and a
-// stacked or composition bar would be meaningless. Three honest cell states.
-// Covered (a moderator reported), listed but none reported (zero or blank), and
-// not listed at all. Total headcount is deliberately not shown here.
+// stacked or composition bar would be meaningless. Three honest cell states:
+// covered (a moderator reported), listed but none reported (zero or blank), and
+// not listed at all. Total headcount is deliberately not shown.
+//
+// The grid pivots. "By platform" puts platforms on the rows and the 24 EU
+// languages on the columns; "By language" transposes it, languages on the rows
+// and platforms on the columns, so a reader can pick a language and scan which
+// platforms cover it. Both views are rendered once and toggled.
 
 import { fetchFromSupabase } from "../lib/supabase.js";
 
 const rows = await fetchFromSupabase("human_moderators_by_language", {
   select: "provider_slug,provider_name,period_label,language_code,language_name,is_eu_official,moderators",
 });
-
-// Roster and sectors from the same source the other charts use, so a platform
-// that filed no moderator data would still appear rather than vanish.
 const overview = await fetchFromSupabase("provider_overview", {
   select: "provider_slug,provider_name,service_category",
 });
@@ -26,8 +28,6 @@ const toNum = (v) => {
 };
 const isEu = (v) => v === true || v === "true";
 
-// Columns: the 24 EU official languages, taken from the data (at least one
-// platform lists all 24), ordered by language name.
 const langMap = new Map();
 for (const r of rows) {
   if (isEu(r.is_eu_official) && r.language_code && r.language_code !== "total") {
@@ -38,8 +38,6 @@ const COLUMNS = [...langMap.entries()]
   .map(([code, name]) => ({ code, name }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
-// One value per (provider, language). A present key means the language appears
-// in that filing; a null value means it was listed with no figure.
 const cellMap = new Map();
 for (const r of rows) {
   if (r.language_code === "total") continue;
@@ -68,6 +66,10 @@ for (const p of providers) {
   p.cells = COLUMNS.map((c) => ({ ...deriveCell(p.slug, c.code), col: c }));
   p.covered = p.cells.filter((c) => c.state === 2).length;
 }
+// per-language tally: how many platforms cover it (state 2)
+COLUMNS.forEach((c, j) => {
+  c.coveredBy = providers.reduce((n, p) => n + (p.cells[j].state === 2 ? 1 : 0), 0);
+});
 
 const sectorCounts = {};
 for (const p of providers) sectorCounts[p.sector] = (sectorCounts[p.sector] || 0) + 1;
@@ -84,6 +86,7 @@ function detailFor(cell) {
 }
 
 const TOTAL_LANGS = COLUMNS.length;
+const TOTAL_PROVIDERS = providers.length;
 ---
 
 <div class="langcov">
@@ -96,8 +99,14 @@ const TOTAL_LANGS = COLUMNS.length;
     reported moderators for, and where it listed a language but reported none for it.
   </p>
 
+  <div class="orient" id="orient">
+    <span class="ctl-lab">View</span>
+    <button data-orient="platform" aria-pressed="true">By platform</button>
+    <button data-orient="language" aria-pressed="false">By language</button>
+  </div>
+
   <div class="sectors" id="sectors">
-    <button data-sec="All sectors" aria-pressed="true">All sectors <span class="ct">{providers.length}</span></button>
+    <button data-sec="All sectors" aria-pressed="true">All sectors <span class="ct">{TOTAL_PROVIDERS}</span></button>
     {sectors.map((s) => (
       <button data-sec={s} aria-pressed="false">{s} <span class="ct">{sectorCounts[s]}</span></button>
     ))}
@@ -106,7 +115,7 @@ const TOTAL_LANGS = COLUMNS.length;
   <div class="controls" id="sortby">
     <span class="sort-lab">Sort</span>
     <button data-sort="alpha" aria-pressed="true">A to Z</button>
-    <button data-sort="covered" aria-pressed="false">Languages covered</button>
+    <button data-sort="count" aria-pressed="false">Languages covered</button>
   </div>
 
   <div class="legend">
@@ -130,38 +139,78 @@ const TOTAL_LANGS = COLUMNS.length;
     </dl>
   </details>
 
-  <div class="scroll">
-    <table aria-label="Moderator language coverage by platform">
-      <thead>
-        <tr>
-          <th class="corner">Platform \ language</th>
-          {COLUMNS.map((c, i) => (
-            <th data-col={i} title={c.name}><span class="lang-code">{c.code.toUpperCase()}</span></th>
-          ))}
-          <th class="sum-head" title={`EU official languages covered, of ${TOTAL_LANGS}`}><span class="sum-label">Covered</span></th>
-        </tr>
-      </thead>
-      <tbody>
-        {providers.map((p) => (
-          <tr data-sector={p.sector} data-name={p.name} data-covered={p.covered}>
-            <th scope="row">{p.name}</th>
-            {p.cells.map((cell, i) => (
-              <td data-col={i}>
-                <span
-                  class:list={["cell", CLS[cell.state]]}
-                  tabindex="0"
-                  data-name={p.name}
-                  data-lang={`${cell.col.name} (${cell.col.code.toUpperCase()})`}
-                  data-state={STATE[cell.state]}
-                  data-detail={detailFor(cell)}
-                ></span>
-              </td>
+  <!-- View A: platforms on rows, languages on columns -->
+  <div class="view active" data-view="platform">
+    <div class="scroll">
+      <table aria-label="Moderator language coverage, platforms by language">
+        <thead>
+          <tr>
+            <th class="corner">Platform \ language</th>
+            {COLUMNS.map((c, i) => (
+              <th data-col={i} title={c.name}><span class="lang-code">{c.code.toUpperCase()}</span></th>
             ))}
-            <td class="sum"><span class="num">{p.covered}</span><span class="den">/{TOTAL_LANGS}</span></td>
+            <th class="sum-head" title={`EU official languages covered, of ${TOTAL_LANGS}`}><span class="sum-label">Covered</span></th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {providers.map((p) => (
+            <tr data-sector={p.sector} data-name={p.name} data-covered={p.covered}>
+              <th scope="row">{p.name}</th>
+              {p.cells.map((cell, i) => (
+                <td data-col={i}>
+                  <span
+                    class:list={["cell", CLS[cell.state]]}
+                    tabindex="0"
+                    data-name={p.name}
+                    data-lang={`${cell.col.name} (${cell.col.code.toUpperCase()})`}
+                    data-state={STATE[cell.state]}
+                    data-detail={detailFor(cell)}
+                  ></span>
+                </td>
+              ))}
+              <td class="sum"><span class="num">{p.covered}</span><span class="den">/{TOTAL_LANGS}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- View B: languages on rows, platforms on columns -->
+  <div class="view" data-view="language">
+    <div class="scroll">
+      <table aria-label="Moderator language coverage, languages by platform">
+        <thead>
+          <tr>
+            <th class="corner">Language \ platform</th>
+            {providers.map((p, k) => (
+              <th data-col={k} data-sector={p.sector} title={p.name}><span class="plat-label">{p.name}</span></th>
+            ))}
+            <th class="sum-head" title={`Platforms covering, of ${TOTAL_PROVIDERS}`}><span class="sum-label">Covered</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {COLUMNS.map((c, j) => (
+            <tr data-name={c.name} data-covering={c.coveredBy}>
+              <th scope="row" title={c.code.toUpperCase()}>{c.name}</th>
+              {providers.map((p, k) => (
+                <td data-col={k} data-sector={p.sector}>
+                  <span
+                    class:list={["cell", CLS[p.cells[j].state]]}
+                    tabindex="0"
+                    data-name={p.name}
+                    data-lang={`${c.name} (${c.code.toUpperCase()})`}
+                    data-state={STATE[p.cells[j].state]}
+                    data-detail={detailFor(p.cells[j])}
+                  ></span>
+                </td>
+              ))}
+              <td class="sum"><span class="num">{c.coveredBy}</span><span class="den">/{TOTAL_PROVIDERS}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <p class="source">
@@ -181,11 +230,14 @@ const TOTAL_LANGS = COLUMNS.length;
   .langcov h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.5rem; max-width: 40ch; }
   .langcov .standfirst { font-size: 1rem; color: var(--ink-dim); margin: 0 0 0.4rem; max-width: 66ch; }
 
-  .langcov .sectors { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 1rem 0 0.55rem; }
-  .langcov .sectors button { font: inherit; font-size: 0.8rem; color: var(--ink-dim); background: none; border: 1px solid var(--border); border-radius: 999px; padding: 0.25rem 0.75rem; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+  .langcov .orient, .langcov .sectors { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+  .langcov .orient { margin: 1rem 0 0.55rem; }
+  .langcov .sectors { margin: 0 0 0.55rem; }
+  .langcov .ctl-lab { font-size: 0.8rem; color: var(--ink-faint); margin-right: 0.15rem; }
+  .langcov .orient button, .langcov .sectors button { font: inherit; font-size: 0.8rem; color: var(--ink-dim); background: none; border: 1px solid var(--border); border-radius: 999px; padding: 0.25rem 0.75rem; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s; }
   .langcov .sectors button .ct { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
-  .langcov .sectors button:hover { color: var(--ink); border-color: var(--ink-faint); }
-  .langcov .sectors button[aria-pressed="true"] { color: var(--bg); background: var(--ink); border-color: var(--ink); }
+  .langcov .orient button:hover, .langcov .sectors button:hover { color: var(--ink); border-color: var(--ink-faint); }
+  .langcov .orient button[aria-pressed="true"], .langcov .sectors button[aria-pressed="true"] { color: var(--bg); background: var(--ink); border-color: var(--ink); }
   .langcov .sectors button[aria-pressed="true"] .ct { color: #d6d3d1; }
 
   .langcov .controls { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; margin: 0 0 0.7rem; }
@@ -207,12 +259,16 @@ const TOTAL_LANGS = COLUMNS.length;
   .langcov .defs dt { font-weight: 600; color: var(--ink); margin-top: 0.55rem; }
   .langcov .defs dd { margin: 0.1rem 0 0; }
 
+  .langcov .view { display: none; }
+  .langcov .view.active { display: block; }
+
   .langcov .scroll { overflow-x: auto; padding-bottom: 0.5rem; }
   .langcov table { border-collapse: separate; border-spacing: 0; font-size: 0.82rem; }
   .langcov thead th { vertical-align: bottom; font-weight: 500; color: var(--ink-dim); padding: 0 0 0.5rem; text-align: center; }
   .langcov thead th.corner { text-align: left; color: var(--ink-faint); font-weight: 400; font-size: 0.72rem; padding-left: 0.1rem; white-space: nowrap; }
   .langcov thead .lang-code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.7rem; letter-spacing: 0.02em; color: var(--ink-faint); cursor: default; }
   .langcov thead th[data-col] { width: 1.45rem; }
+  .langcov thead .plat-label { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; line-height: 1; font-size: 0.72rem; margin: 0 auto; cursor: default; max-height: 9rem; }
   .langcov thead .sum-head { padding: 0 0 0.5rem 0.5rem; }
   .langcov thead .sum-label { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-size: 0.7rem; color: var(--ink-faint); line-height: 1; }
   .langcov tbody th { text-align: left; font-weight: 400; color: var(--ink); white-space: nowrap; padding: 0 0.9rem 0 0.1rem; position: sticky; left: 0; background: var(--bg); z-index: 1; }
@@ -247,13 +303,16 @@ const TOTAL_LANGS = COLUMNS.length;
 <script>
   const root = document.querySelector(".langcov");
   if (root) {
-    const grid = root.querySelector("table");
-    const tbody = grid.querySelector("tbody");
     const tip = root.querySelector("#tip");
+    const orientCtl = root.querySelector("#orient");
     const sectors = root.querySelector("#sectors");
     const sortby = root.querySelector("#sortby");
-    const allRows = Array.from(tbody.querySelectorAll("tr"));
-    const state = { sector: "All sectors", sort: "alpha" };
+    const sortCountBtn = sortby.querySelector('[data-sort="count"]');
+    const views = {
+      platform: root.querySelector('.view[data-view="platform"]'),
+      language: root.querySelector('.view[data-view="language"]'),
+    };
+    const state = { orient: "platform", sector: "All sectors", sort: "alpha" };
 
     function showTip(cell) {
       tip.innerHTML =
@@ -262,8 +321,9 @@ const TOTAL_LANGS = COLUMNS.length;
         "<div class='t-state'>" + cell.dataset.state + "</div>" +
         "<div class='t-note'>" + cell.dataset.detail + "</div>";
       tip.classList.add("show");
+      const table = cell.closest("table");
       const c = cell.closest("td").dataset.col;
-      grid.querySelectorAll("[data-col]").forEach((el) => {
+      table.querySelectorAll("[data-col]").forEach((el) => {
         el.classList.toggle("dim", el.dataset.col !== c);
       });
     }
@@ -276,42 +336,75 @@ const TOTAL_LANGS = COLUMNS.length;
     }
     function hideTip() {
       tip.classList.remove("show");
-      grid.querySelectorAll(".dim").forEach((el) => el.classList.remove("dim"));
+      root.querySelectorAll(".dim").forEach((el) => el.classList.remove("dim"));
     }
 
-    grid.addEventListener("mouseover", (e) => { const c = e.target.closest(".cell"); if (c) showTip(c); });
-    grid.addEventListener("mousemove", (e) => { if (tip.classList.contains("show")) moveTip(e); });
-    grid.addEventListener("mouseout", (e) => { if (e.target.closest(".cell")) hideTip(); });
-    grid.addEventListener("focusin", (e) => {
+    root.addEventListener("mouseover", (e) => { const c = e.target.closest(".cell"); if (c) showTip(c); });
+    root.addEventListener("mousemove", (e) => { if (tip.classList.contains("show")) moveTip(e); });
+    root.addEventListener("mouseout", (e) => { if (e.target.closest(".cell")) hideTip(); });
+    root.addEventListener("focusin", (e) => {
       const c = e.target.closest(".cell");
       if (c) { const b = c.getBoundingClientRect(); showTip(c); tip.style.left = (b.right + 8) + "px"; tip.style.top = b.top + "px"; }
     });
-    grid.addEventListener("focusout", hideTip);
+    root.addEventListener("focusout", (e) => { if (e.target.closest(".cell")) hideTip(); });
 
-    function apply() {
-      const visible = allRows
+    function applyPlatform() {
+      const tbody = views.platform.querySelector("tbody");
+      const trs = Array.from(tbody.querySelectorAll("tr"));
+      const vis = trs
         .filter((tr) => state.sector === "All sectors" || tr.dataset.sector === state.sector)
         .sort((a, b) => {
-          if (state.sort === "covered") {
+          if (state.sort === "count") {
             const d = Number(b.dataset.covered) - Number(a.dataset.covered);
             if (d !== 0) return d;
           }
           return a.dataset.name.localeCompare(b.dataset.name);
         });
-      allRows.forEach((tr) => (tr.style.display = "none"));
-      visible.forEach((tr) => { tr.style.display = ""; tbody.appendChild(tr); });
+      trs.forEach((tr) => (tr.style.display = "none"));
+      vis.forEach((tr) => { tr.style.display = ""; tbody.appendChild(tr); });
     }
 
+    function applyLanguage() {
+      const table = views.language.querySelector("table");
+      const tbody = table.querySelector("tbody");
+      // filter platform columns by sector (header and body cells share data-col + data-sector)
+      table.querySelectorAll("[data-col]").forEach((el) => {
+        el.style.display = (state.sector === "All sectors" || el.dataset.sector === state.sector) ? "" : "none";
+      });
+      // sort language rows
+      const trs = Array.from(tbody.querySelectorAll("tr")).sort((a, b) => {
+        if (state.sort === "count") {
+          const d = Number(b.dataset.covering) - Number(a.dataset.covering);
+          if (d !== 0) return d;
+        }
+        return a.dataset.name.localeCompare(b.dataset.name);
+      });
+      trs.forEach((tr) => tbody.appendChild(tr));
+    }
+
+    function apply() {
+      views.platform.classList.toggle("active", state.orient === "platform");
+      views.language.classList.toggle("active", state.orient === "language");
+      sortCountBtn.textContent = state.orient === "platform" ? "Languages covered" : "Platforms covering";
+      if (state.orient === "platform") applyPlatform(); else applyLanguage();
+    }
+
+    orientCtl.addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      state.orient = b.dataset.orient;
+      orientCtl.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+      apply();
+    });
     sectors.addEventListener("click", (e) => {
-      const btn = e.target.closest("button"); if (!btn) return;
-      state.sector = btn.dataset.sec;
-      sectors.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+      const b = e.target.closest("button"); if (!b) return;
+      state.sector = b.dataset.sec;
+      sectors.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
       apply();
     });
     sortby.addEventListener("click", (e) => {
-      const btn = e.target.closest("button"); if (!btn) return;
-      state.sort = btn.dataset.sort;
-      sortby.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+      const b = e.target.closest("button"); if (!b) return;
+      state.sort = b.dataset.sort;
+      sortby.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
       apply();
     });
 
