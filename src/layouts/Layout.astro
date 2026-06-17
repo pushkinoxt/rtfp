@@ -12,7 +12,7 @@ const PUBLIC_URL = "https://rtfp.io";
 // so its parent lights up when the current path is any of them.
 const path = Astro.url.pathname;
 const isActive = (p) => path === p || path.startsWith(p + "/");
-const DATA_ROUTES = ["/explore", "/sources", "/api"];
+const DATA_ROUTES = ["/patterns", "/explore", "/sources", "/api"];
 const inDataSection = DATA_ROUTES.some((p) => isActive(p));
 ---
 <!DOCTYPE html>
@@ -231,6 +231,7 @@ const inDataSection = DATA_ROUTES.some((p) => isActive(p));
         <details class:list={["nav-dropdown", { "is-active": inDataSection }]}>
           <summary aria-haspopup="true">Data</summary>
           <div class="nav-menu" role="menu">
+            <a href="/patterns" role="menuitem" aria-current={isActive("/patterns") ? "page" : undefined}>Patterns</a>
             <a href="/explore" role="menuitem" aria-current={isActive("/explore") ? "page" : undefined}>Explore</a>
             <a href="/sources" role="menuitem" aria-current={isActive("/sources") ? "page" : undefined}>Sources</a>
             <a href="/api" role="menuitem" aria-current={isActive("/api") ? "page" : undefined}>API</a>
