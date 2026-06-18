@@ -12,7 +12,7 @@ const PUBLIC_URL = "https://rtfp.io";
 // so its parent lights up when the current path is any of them.
 const path = Astro.url.pathname;
 const isActive = (p) => path === p || path.startsWith(p + "/");
-const DATA_ROUTES = ["/patterns", "/explore", "/sources", "/api"];
+const DATA_ROUTES = ["/data", "/patterns", "/explore", "/sources", "/api"];
 const inDataSection = DATA_ROUTES.some((p) => isActive(p));
 ---
 <!DOCTYPE html>
@@ -112,19 +112,22 @@ const inDataSection = DATA_ROUTES.some((p) => isActive(p));
         font-weight: 500;
       }
 
-      /* Data dropdown: a native details element, so it works without JS. */
-      .nav-dropdown { position: relative; }
-      .nav-dropdown > summary {
-        list-style: none;
+      /* Dropdown nav items (Data, Fine Print): the label is a link to the hub,
+         and a separate caret toggles the menu (opened by the script below). */
+      .nav-dropdown { position: relative; display: inline-flex; align-items: center; gap: 0.2rem; }
+      .nav-dropdown.is-active > .nav-dropdown-label { color: var(--ink); font-weight: 500; }
+      .nav-caret {
+        appearance: none;
+        background: none;
+        border: 0;
+        margin: 0;
+        padding: 0.15rem 0.1rem;
         cursor: pointer;
         color: inherit;
         display: inline-flex;
         align-items: center;
-        gap: 0.3rem;
       }
-      .nav-dropdown > summary::-webkit-details-marker { display: none; }
-      .nav-dropdown > summary::marker { content: ""; }
-      .nav-dropdown > summary::after {
+      .nav-caret::after {
         content: "";
         width: 0.4rem;
         height: 0.4rem;
@@ -133,9 +136,8 @@ const inDataSection = DATA_ROUTES.some((p) => isActive(p));
         transform: translateY(-2px) rotate(45deg);
         transition: transform 0.15s ease;
       }
-      .nav-dropdown[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
-      .nav-dropdown > summary:hover { color: var(--ink); }
-      .nav-dropdown.is-active > summary { color: var(--ink); font-weight: 500; }
+      .nav-caret[aria-expanded="true"]::after { transform: translateY(1px) rotate(-135deg); }
+      .nav-caret:hover { color: var(--ink); }
       .nav-menu {
         display: none;
         position: absolute;
@@ -151,7 +153,7 @@ const inDataSection = DATA_ROUTES.some((p) => isActive(p));
         border-radius: 8px;
         box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
       }
-      .nav-dropdown[open] > .nav-menu { display: flex; }
+      .nav-menu.open { display: flex; }
       .nav-menu a {
         padding: 0.4rem 0.6rem;
         border-radius: 5px;
@@ -228,16 +230,24 @@ const inDataSection = DATA_ROUTES.some((p) => isActive(p));
       <nav>
         <a href="/" aria-current={path === "/" ? "page" : undefined}>Home</a>
         <a href="/platforms" aria-current={isActive("/platforms") ? "page" : undefined}>Platforms</a>
-        <details class:list={["nav-dropdown", { "is-active": inDataSection }]}>
-          <summary aria-haspopup="true">Data</summary>
+        <div class:list={["nav-dropdown", { "is-active": inDataSection }]}>
+          <a href="/data" class="nav-dropdown-label" aria-current={path === "/data" ? "page" : undefined}>Data</a>
+          <button type="button" class="nav-caret" aria-haspopup="true" aria-expanded="false" aria-label="Open Data menu"></button>
           <div class="nav-menu" role="menu">
             <a href="/patterns" role="menuitem" aria-current={isActive("/patterns") ? "page" : undefined}>Patterns</a>
             <a href="/explore" role="menuitem" aria-current={isActive("/explore") ? "page" : undefined}>Explore</a>
             <a href="/sources" role="menuitem" aria-current={isActive("/sources") ? "page" : undefined}>Sources</a>
             <a href="/api" role="menuitem" aria-current={isActive("/api") ? "page" : undefined}>API</a>
           </div>
-        </details>
-        <a href="/fine-print" aria-current={isActive("/fine-print") ? "page" : undefined}>The Fine Print</a>
+        </div>
+        <div class:list={["nav-dropdown", { "is-active": isActive("/fine-print") }]}>
+          <a href="/fine-print" class="nav-dropdown-label" aria-current={path === "/fine-print" ? "page" : undefined}>Fine Print</a>
+          <button type="button" class="nav-caret" aria-haspopup="true" aria-expanded="false" aria-label="Open Fine Print menu"></button>
+          <div class="nav-menu" role="menu">
+            <a href="/fine-print/method" role="menuitem" aria-current={isActive("/fine-print/method") ? "page" : undefined}>Method</a>
+            <a href="/fine-print/footnotes" role="menuitem" aria-current={isActive("/fine-print/footnotes") ? "page" : undefined}>Footnotes</a>
+          </div>
+        </div>
         <a href="/about" aria-current={path === "/about" ? "page" : undefined}>About</a>
       </nav>
     </header>
@@ -259,20 +269,33 @@ const inDataSection = DATA_ROUTES.some((p) => isActive(p));
     </footer>
 
     <script>
-      // Progressive enhancement for the nav dropdown: native <details> already
-      // opens/closes on click and keyboard; this just closes it when the user
-      // clicks elsewhere or presses Escape, like a conventional menu.
-      document.addEventListener("click", (e) => {
-        document.querySelectorAll("details.nav-dropdown[open]").forEach((d) => {
-          if (!d.contains(e.target)) d.removeAttribute("open");
+      // Nav dropdowns: the label is a plain link to the hub; the caret toggles
+      // the menu. Without JS the caret does nothing and the hub link still works.
+      const navDropdowns = Array.from(document.querySelectorAll(".nav-dropdown"));
+      function closeNavMenus() {
+        navDropdowns.forEach((dd) => {
+          dd.querySelector(".nav-menu")?.classList.remove("open");
+          dd.querySelector(".nav-caret")?.setAttribute("aria-expanded", "false");
+        });
+      }
+      navDropdowns.forEach((dd) => {
+        const caret = dd.querySelector(".nav-caret");
+        const menu = dd.querySelector(".nav-menu");
+        if (!caret || !menu) return;
+        caret.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const isOpen = menu.classList.contains("open");
+          closeNavMenus();
+          if (!isOpen) {
+            menu.classList.add("open");
+            caret.setAttribute("aria-expanded", "true");
+          }
         });
       });
+      document.addEventListener("click", closeNavMenus);
       document.addEventListener("keydown", (e) => {
-        if (e.key !== "Escape") return;
-        document.querySelectorAll("details.nav-dropdown[open]").forEach((d) => {
-          d.removeAttribute("open");
-          d.querySelector("summary")?.focus();
-        });
+        if (e.key === "Escape") closeNavMenus();
       });
     </script>
   </body>
