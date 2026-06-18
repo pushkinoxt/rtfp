@@ -20,26 +20,19 @@ import Layout from "../../layouts/Layout.astro";
       The dataset covers 22 very large online platforms for the second half of 2025, the first cycle
       reported under Commission Implementing Regulation 2024/2835. We retrieved each provider's published
       filing from its source, loaded it into a Postgres database as filed with one figure per source cell,
-      and harmonised it through numbered SQL migrations. We normalised the form of the data, never its
-      substance, recording each change and keeping the original. The transforms, and every divergence that
-      required them, are listed in <a href="/fine-print/footnotes">Footnotes</a>. We derive comparison
-      views over the harmonised data and serve them as a read-only public API, which this site reads at
+      and harmonised it through numbered SQL migrations. We normalised the form of the data and recorded 
+      each change and kept the original. The transforms are listed in <a href="/fine-print/footnotes">Footnotes</a>. 
+      The derived comparison views over the harmonised data are served as a read-only public API, which this site reads at
       build time.
     </p>
 
     <p>
-      Figures are loaded as published and traced to source. We force no total to reconcile and resolve no
-      ambiguous indicator. Where a figure cannot be made comparable, we say so.
-    </p>
-
-    <p>
-      The designated search engines are out of scope this cycle. Banded audience figures and restatement
+      The designated search engines are not yet included. Banded audience figures and restatement
       versions are reported as filed and noted in Footnotes.
     </p>
 
     <p>
-      This is not an audit. It records what each provider reported and how, not whether it is accurate. The
-      exhaustive technical methodology is in the
+        The technical methodology is in the
       <a href="https://github.com/pushkinoxt/rtfp-data" target="_blank" rel="noopener">data repository</a>.
     </p>
   </div>

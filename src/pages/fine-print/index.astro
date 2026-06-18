@@ -8,8 +8,8 @@
 import Layout from "../../layouts/Layout.astro";
 
 const sections = [
-  { slug: "method",    title: "Method",    blurb: "How the dataset is built, and the limits of what can be compared.", ready: false },
-  { slug: "footnotes", title: "Footnotes", blurb: "Every structural divergence from the template this cycle, and what we did to harmonise it.", ready: false },
+  { slug: "method",    title: "Method",    blurb: "How the dataset is built, and the limits of what can be compared.", ready: true },
+  { slug: "footnotes", title: "Footnotes", blurb: "Every structural divergence from the template this cycle, and what we did to harmonise it.", ready: true },
 ];
 const live = sections.filter((s) => s.ready);
 const upcoming = sections.filter((s) => !s.ready);
@@ -32,7 +32,7 @@ const upcoming = sections.filter((s) => !s.ready);
     <div class="principles">
       <p>
         Every figure is loaded as the provider reported. We harmonise only the form of the data, so that like 
-        compares with like, and never the substance of what a provider reported. This is the fine print.
+        compares with like. This is the fine print of how we got there.
       </p>
       <p>
         Found an error? <a href="https://github.com/pushkinoxt/rtfp/issues">Let us know!</a></p>
@@ -64,8 +64,7 @@ const upcoming = sections.filter((s) => !s.ready);
     )}
 
     <p class="boundary">
-      This section concerns the form of the reports, not their content. It does not assess the accuracy of
-      any figure or the practices of any provider.
+      This section concerns the form only of the reports and not their content.
     </p>
   </div>
 </Layout>
