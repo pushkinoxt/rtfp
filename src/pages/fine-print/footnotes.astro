@@ -1,0 +1,393 @@
+---
+// src/pages/fine-print/footnotes.astro
+// The divergence register. Every structural departure from the harmonised
+// template this cycle, grouped by the regulation's own constraint level (most
+// binding to least) plus a final group for the form of the submission itself.
+// Each entry: what the filing showed, the specimen where there is one, the
+// affected providers, and one clinical line on what we did. Authored content,
+// since the specimens are fixed historical strings. Filter by tier or provider.
+
+import Layout from "../../layouts/Layout.astro";
+import BackToFineprint from "../../components/BackToFineprint.astro";
+
+const TIERS = [
+  { key: "departure",   label: "1. Departure from regulation",  short: "Departure",    note: "The regulation stated a requirement and the filing did not meet it." },
+  { key: "permitted",   label: "2. Permitted by regulation",    short: "Permitted",    note: "The regulation explicitly allowed the option the provider took." },
+  { key: "notmandated", label: "3. Not mandated in regulation", short: "Not mandated", note: "The regulation did not require or address the point, and the choices varied across providers." },
+  { key: "other",       label: "4. Other changes",              short: "Other",        note: "Changes to the form of the submission itself, in how it was packaged, named, or when it arrived, rather than to the data inside it." },
+];
+
+const entries = [
+  {
+    tier: "departure",
+    title: "Non-UTF-8 file encoding",
+    observation: "The regulation binds filings to UTF-8. AliExpress filed file 11 in ISO-8859-1, and Temu filed files 3, 8, 9 and 11 in it, inconsistently within an otherwise UTF-8 bundle.",
+    specimens: [],
+    providers: ["AliExpress", "Temu"],
+    handling: "We attempt UTF-8 first, then fall back to Latin-1 and Windows-1252, and record the encoding each file used. UTF-8 is one of the regulation's two binding format requirements.",
+  },
+  {
+    tier: "departure",
+    title: "Codes outside the closed taxonomy",
+    observation: "Annex II defines a closed code list, with every moderation action classified against the codes declared in the categories file. Loading the filings grew that list from 86 declared codes to 135. Meta added the most, roughly 41 finer codes, and LinkedIn five, while TikTok and X added none.",
+    specimens: [
+      { label: "declared", value: "KEYWORD_OTHER" },
+      { label: "added", value: "KEYWORD_OTHER_FRAUD_AND_DECEPTION" },
+    ],
+    providers: ["Facebook", "Instagram", "LinkedIn"],
+    handling: "We load every code as filed and record the codes that fall outside the declared list. The taxonomy is closed by the regulation, so a code beyond it is an addition to it.",
+  },
+  {
+    tier: "notmandated",
+    title: "Non-conforming scope ranges",
+    observation: "File 3 expects one value per row, either TOTAL or a single member-state code. To record no orders across the member states, three providers wrote a bracketed range between two anchor codes, each rendering the placeholder differently. The rows carried zero across every data column.",
+    specimens: [
+      { label: "AliExpress, 86 rows", value: "AT, [_], SE" },
+      { label: "Shein, 85 rows", value: "AT, […], SE" },
+      { label: "Temu, 85 rows", value: "AT, [¡­], SE" },
+    ],
+    providers: ["AliExpress", "Shein", "Temu"],
+    handling: "We store these under a synthetic _NON_CONFORMING_RANGE marker and keep the original text, so downstream views can include or exclude them. The template's single-value structure would express the same as a zero in each member state's own row.",
+  },
+  {
+    tier: "notmandated",
+    title: "Duplicate rows under the template's row identity",
+    observation: "File 8 is unique by indicator, language and scope. Four providers filed it with empty duplicate rows under that identity: Pinterest 5, Zalando 6, Amazon Store 6, Temu 156. Most likely a template-export artefact.",
+    specimens: [],
+    providers: ["Pinterest", "Zalando", "Amazon Store", "Temu"],
+    handling: "We keep the first occurrence of each row and drop and count the rest. The duplicates carried no data, so nothing reported is lost.",
+  },
+  {
+    tier: "notmandated",
+    title: "Restatement signalled three ways",
+    observation: "The regulation does not say how to flag a restatement. Three providers restated during the cycle and each signalled it differently. Amazon Store republished file 6 with a contextual note, its total moving from 150,504,153 to 402,704,488. Shein annotated its file 1 date field. Snapchat republished the whole report, recording the original date in file 1.",
+    specimens: [
+      { label: "Shein, file 1 date", value: "2026/2/28[Updated 2026/04/30]" },
+    ],
+    providers: ["Amazon Store", "Shein", "Snapchat"],
+    handling: "We currently hold the original of each, with version comparison planned. The regulation fixed the figures to report but not how to mark a correction to them.",
+  },
+  {
+    tier: "notmandated",
+    title: "AMAR reported over a shifted window",
+    observation: "The cycle runs 1 July to 31 December 2025. Shein reported its AMAR over 1 August 2025 to 31 January 2026 while its other metrics used the standard window, disclosed in a free-text annotation in the reporting-period field.",
+    specimens: [
+      { label: "Shein, file 1 period", value: "2025/12/31 (except for AMR figures which is reported from 2025/8/1 to 2026/1/31)" },
+    ],
+    providers: ["Shein"],
+    handling: "We load the figure as filed and attach a caveat wherever a per-AMAR comparison involves Shein. AMAR is the denominator for per-user comparison, so a shifted window changes how its rates compare.",
+  },
+  {
+    tier: "notmandated",
+    title: "Audience as a band rather than a figure",
+    observation: "Some providers reported audience as a range rather than a single number. Booking reported in units of 100,000, and Google's services reported two separate bases, signed-in accounts and signed-out sessions, which count different things.",
+    specimens: [],
+    providers: ["Booking.com", "Google Maps", "Google Play", "Google Shopping", "YouTube"],
+    handling: "We store the bands as filed, and where a single comparable figure is needed we use signed-in accounts, labelled, and keep banded providers out of precise per-user rates. The template asks for the figure, and a range departs from it.",
+  },
+  {
+    tier: "notmandated",
+    title: "Two rows under one code",
+    observation: "In file 4, X filed two rows carrying the same category code under the same parent category, distinguished only by their free-text description. None of the other providers did this.",
+    specimens: [
+      { label: "filed twice, one parent", value: "KEYWORD_OTHER" },
+    ],
+    providers: ["X"],
+    handling: "We widened the row identity to include the description text, so neither row is dropped as a duplicate. The template's row structure did not anticipate two distinct entries under one code.",
+  },
+  {
+    tier: "notmandated",
+    title: "Spreadsheet-export merged cells",
+    observation: "Instagram's filing was exported from a spreadsheet with merged category cells, leaving the category code present only on the first row of each group and blank on the continuation rows.",
+    specimens: [],
+    providers: ["Instagram"],
+    handling: "We forward-fill the code down each group so every row carries its category. The merge is an export artefact, not a value the template defines.",
+  },
+  {
+    tier: "permitted",
+    title: "Omitted optional columns",
+    observation: "Annex II permits a provider to omit columns for which it has no data. Snapchat omitted four columns in file 4 and the category-of-incompatibility column in file 6. The file 6 omission removes the dimension on which its terms-and-conditions actions could otherwise be broken down by category.",
+    specimens: [],
+    providers: ["Snapchat"],
+    handling: "We store the omitted columns as null and record the omission. The template allows it, so the missing dimension is permitted rather than withheld.",
+  },
+  {
+    tier: "notmandated",
+    title: "Inconsistent date formats",
+    observation: "The regulation does not specify a date format. Providers used at least three conventions in file 1, and Shein embedded annotations within the field.",
+    specimens: [
+      { label: "ISO", value: "2026-02-27" },
+      { label: "ISO with time", value: "2026-02-27 00:00:00" },
+      { label: "European", value: "27/02/2026" },
+    ],
+    providers: ["TikTok", "Amazon Store", "LinkedIn", "Snapchat", "Shein"],
+    handling: "We parse against common formats and strip annotations, preserving the original value. The template fixed the fields but left their notation free.",
+  },
+  {
+    tier: "notmandated",
+    title: "Different number notation",
+    observation: "The same magnitude appears written three ways across filings, with thousands marked by a comma, by a dot, or replaced with a magnitude suffix.",
+    specimens: [
+      { label: "Instagram", value: "1,234,567" },
+      { label: "Zalando", value: "1.234.567" },
+      { label: "Temu", value: "1.2M" },
+    ],
+    providers: ["Instagram", "Zalando", "Temu"],
+    handling: "We parse all three to a plain integer, distinguishing a decimal point from a thousands dot. The regulation fixed the figures but not how to write them.",
+  },
+  {
+    tier: "notmandated",
+    title: "Divergent country codes",
+    observation: "Greece appears under EL from Instagram and LinkedIn and under GR from TikTok, the EU institutional code against the ISO code. A comparable split affects the Czech and Irish codes.",
+    specimens: [
+      { label: "Instagram, LinkedIn", value: "EL" },
+      { label: "TikTok", value: "GR" },
+    ],
+    providers: ["Instagram", "LinkedIn", "TikTok"],
+    handling: "We map each to one canonical code, so a country's figures reconcile across providers. The regulation names the indicators but not which code set to use.",
+  },
+  {
+    tier: "notmandated",
+    title: "How absence is expressed",
+    observation: "For own-initiative action against illegal content, the providers that addressed it expressed absence differently. TikTok filed the form blank, LinkedIn filed explicit zeros, X filed nulls with no usable total, and Instagram filed figures. For Article 23 misuse suspensions, three filed zero and TikTok filed null.",
+    specimens: [],
+    providers: ["TikTok", "LinkedIn", "X", "Instagram"],
+    handling: "We preserve the distinction between blank, zero and null, and treat a blank as not reported rather than as a zero. A reported zero is a measurement, and a blank is its absence.",
+  },
+  {
+    tier: "notmandated",
+    title: "File-naming conventions",
+    observation: "Providers numbered their files without zero-padding, so an alphabetical sort runs 1, 10, 11, 2, and named them readably rather than by the article references the files correspond to.",
+    specimens: [
+      { label: "as filed", value: "5_own_initiative_illegal" },
+      { label: "canonical", value: "05_A151C_Own_Illegal" },
+    ],
+    providers: [],
+    handling: "We rename to one canonical scheme and keep each original alongside it with a suffix. The regulation fixed the files' contents but not their names or order.",
+  },
+  {
+    tier: "notmandated",
+    title: "Underspecified indicators",
+    observation: "The template named an indicator but not how to compute it. Out-of-court dispute outcomes are reported as a percentage, but a value like 0.403 could mean 40.3 percent or 0.403 percent, and the data cannot resolve which. The Article 9 and Article 10 order-compliance medians were filed without a defined moment for the clock to start.",
+    specimens: [
+      { label: "out-of-court, share implemented", value: "0.403" },
+    ],
+    providers: ["TikTok", "Instagram", "LinkedIn", "X"],
+    handling: "We report both as filed and flag that they are not comparable across providers. The indicator is named by the regulation, but its unit and its clock are not.",
+  },
+  {
+    tier: "notmandated",
+    title: "Parts that do not reconcile to the whole",
+    observation: "Some totals do not equal the sum of their parts as filed. The four restriction-type columns sum to the reported total exactly for most providers, past it for AliExpress and TikTok, and short of it for Pornhub and Snapchat. The per-language moderator figures overlap, since a multilingual moderator is counted under each language, and TikTok's declared moderator total exceeds its language sum by 472.",
+    specimens: [
+      { label: "TikTok, restriction types vs total", value: "type sum 261,778,094 / reported total 258,691,522" },
+    ],
+    providers: ["AliExpress", "TikTok", "Pornhub", "Snapchat"],
+    handling: "We report the figures as filed and do not force them to reconcile. This is an observed property of the data as published, not a step we took, and the parts relate to the whole differently across providers.",
+  },
+  {
+    tier: "other",
+    title: "Advertising filed as separate services",
+    observation: "Google filed advertising as a distinct service for four of its products, each shipping a separate ads bundle alongside the main filing.",
+    specimens: [],
+    providers: ["Google Maps", "Google Play", "Google Shopping", "YouTube"],
+    handling: "We load each ads bundle as its own service filing and box its figures off, never blended into a platform's headline totals. The filing arrived as more than one submission per provider.",
+  },
+  {
+    tier: "other",
+    title: "A repeated file in the bundle",
+    observation: "X's bundle contained file 7, appeals and recidivism, twice.",
+    specimens: [],
+    providers: ["X"],
+    handling: "We load a single copy. The repetition is a packaging artefact, not additional data.",
+  },
+  {
+    tier: "other",
+    title: "Late and misnamed filing",
+    observation: "X filed late and misnamed a file within its bundle.",
+    specimens: [],
+    providers: ["X"],
+    handling: "We load the filing as received and note the timeliness and the naming in the import log. This concerns when and how the report arrived rather than what it contained.",
+  },
+  {
+    tier: "other",
+    title: "Per-tool rather than aggregate automation reporting",
+    observation: "For the accuracy of automated detection, most providers reported a single aggregate figure. XVideos and XNXX instead reported the accuracy of each third-party classifier they run, one row per detector.",
+    specimens: [],
+    providers: ["XVideos", "XNXX"],
+    handling: "We widened the row identity so these distinct per-detector rows are kept rather than collapsed as duplicates. The same indicator was filed at a finer grain than the aggregate the others reported.",
+  },
+  {
+    tier: "other",
+    title: "Single-spreadsheet bundles",
+    observation: "Where most providers filed eleven separate CSVs, Shein, Apple App Store and Wikipedia each filed a single spreadsheet with the files as tabs.",
+    specimens: [],
+    providers: ["Shein", "Apple App Store", "Wikipedia"],
+    handling: "We split each into the eleven files before loading. This is a packaging choice the regulation does not constrain.",
+  },
+];
+
+const allProviders = [...new Set(entries.flatMap((e) => e.providers))].sort((a, b) => a.localeCompare(b));
+const byTier = (key) => entries.filter((e) => e.tier === key);
+---
+
+<Layout
+  title="Footnotes | RTFP"
+  description="Every structural divergence from the harmonised DSA template in the H2 2025 filings, by regulatory tier, and what we did to harmonise it."
+>
+  <div class="footnotes">
+    <BackToFineprint />
+    <p class="eyebrow">The Fine Print</p>
+    <h1>Footnotes</h1>
+    <p class="standfirst">
+      Every place a filing departed from the harmonised template this cycle, in the form or structure of
+      its data, ordered by the regulation's own words. We classify these divergences as follows:
+      (1) departure from regulation, (2) permitted by regulation, (3) not mandated in regulation,
+      (4) other changes. Each entry records what the filing showed and the step we took to put it on equal
+      terms. It concerns form, not substance, and assesses no provider's figures or practices.
+    </p>
+
+    <div class="controls">
+      <div class="tiers" id="tierfilter">
+        <button data-tier="all" aria-pressed="true">All</button>
+        {TIERS.map((t) => (
+          <button data-tier={t.key} aria-pressed="false">{t.short}</button>
+        ))}
+      </div>
+      <label class="prov-filter">
+        <span>Provider</span>
+        <select id="provfilter">
+          <option value="all">All providers</option>
+          {allProviders.map((p) => (
+            <option value={p}>{p}</option>
+          ))}
+        </select>
+      </label>
+    </div>
+
+    <div id="register">
+      {TIERS.map((t) => (
+        <section class="tier" data-tier-section={t.key}>
+          <h2>{t.label}</h2>
+          <p class="tier-note">{t.note}</p>
+          {byTier(t.key).map((e) => (
+            <article class="entry" data-tier={e.tier} data-providers={e.providers.join("|")}>
+              <h3>{e.title}</h3>
+              <p class="obs">{e.observation}</p>
+              {e.specimens.length > 0 && (
+                <div class="specimens">
+                  {e.specimens.map((s) => (
+                    <div class="spec">
+                      {s.label && <span class="spec-label">{s.label}</span>}
+                      <code>{s.value}</code>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {e.providers.length > 0 && (
+                <div class="provs">
+                  {e.providers.map((p) => (
+                    <span class="prov">{p}</span>
+                  ))}
+                </div>
+              )}
+              <p class="handling">{e.handling}</p>
+            </article>
+          ))}
+        </section>
+      ))}
+      <p class="no-match" id="nomatch" hidden>No entries match that combination.</p>
+    </div>
+
+    <p class="commentary">
+      The harmonised template narrowed the ways these reports could differ, but it did not remove them. The
+      entries above are every structural divergence we found this cycle and the step each one required. They
+      are why the figures elsewhere on the site carry the caveats they do, and why comparing two providers'
+      raw numbers means first knowing how each was filed.
+    </p>
+
+    <p class="boundary">
+      This page concerns how faithfully and how differently each provider followed the template. It does not
+      assess the accuracy of any figure or the substance of any provider's moderation. The exhaustive
+      register, with the full handling notes, lives alongside the methodology in the
+      <a href="https://github.com/pushkinoxt/rtfp-data" target="_blank" rel="noopener">data repository</a>.
+    </p>
+  </div>
+</Layout>
+
+<style>
+  .footnotes .eyebrow { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.6rem; }
+  .footnotes h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.5rem; }
+  .footnotes .standfirst { font-size: 1rem; color: var(--ink-dim); margin: 0 0 0.5rem; max-width: 70ch; line-height: 1.55; }
+
+  .footnotes .controls { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; margin: 1.4rem 0 0.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+  .footnotes .tiers { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .footnotes .tiers button { font: inherit; font-size: 0.8rem; color: var(--ink-dim); background: none; border: 1px solid var(--border); border-radius: 999px; padding: 0.25rem 0.75rem; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+  .footnotes .tiers button:hover { color: var(--ink); border-color: var(--ink-faint); }
+  .footnotes .tiers button[aria-pressed="true"] { color: var(--bg); background: var(--ink); border-color: var(--ink); }
+  .footnotes .prov-filter { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--ink-faint); }
+  .footnotes .prov-filter select { font: inherit; font-size: 0.8rem; color: var(--ink); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.25rem 1.6rem 0.25rem 0.6rem; cursor: pointer; appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--ink-faint) 50%), linear-gradient(135deg, var(--ink-faint) 50%, transparent 50%); background-position: calc(100% - 0.9rem) 0.7rem, calc(100% - 0.6rem) 0.7rem; background-size: 0.3rem 0.3rem; background-repeat: no-repeat; }
+
+  .footnotes .tier { margin-top: 2.2rem; }
+  .footnotes .tier h2 { font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 0.2rem; }
+  .footnotes .tier-note { font-size: 0.85rem; color: var(--ink-faint); margin: 0 0 1.2rem; max-width: 70ch; }
+
+  .footnotes .entry { padding: 1rem 0 1.1rem; border-top: 1px solid var(--border); max-width: 72ch; }
+  .footnotes .entry h3 { font-size: 0.98rem; font-weight: 600; margin: 0 0 0.4rem; }
+  .footnotes .entry .obs { font-size: 0.9rem; color: var(--ink-dim); margin: 0 0 0.6rem; line-height: 1.55; }
+
+  .footnotes .specimens { margin: 0 0 0.6rem; display: flex; flex-direction: column; gap: 0.25rem; }
+  .footnotes .spec { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+  .footnotes .spec-label { font-size: 0.72rem; color: var(--ink-faint); min-width: 9rem; }
+  .footnotes .spec code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.8rem; color: var(--ink); background: var(--code-bg, #f1efec); padding: 0.1rem 0.4rem; border-radius: 4px; }
+
+  .footnotes .provs { display: flex; gap: 0.35rem; flex-wrap: wrap; margin: 0 0 0.6rem; }
+  .footnotes .prov { font-size: 0.72rem; color: var(--ink-dim); border: 1px solid var(--border); border-radius: 999px; padding: 0.1rem 0.55rem; }
+
+  .footnotes .handling { font-size: 0.85rem; color: var(--ink-dim); margin: 0; line-height: 1.5; padding-left: 0.75rem; border-left: 2px solid var(--border); }
+
+  .footnotes .no-match { font-size: 0.9rem; color: var(--ink-faint); margin-top: 2rem; }
+
+  .footnotes .commentary { font-size: 0.92rem; color: var(--ink-dim); max-width: 70ch; margin-top: 2.4rem; line-height: 1.55; }
+  .footnotes .boundary { font-size: 0.82rem; color: var(--ink-faint); max-width: 70ch; margin-top: 1.2rem; line-height: 1.5; }
+  .footnotes .boundary a { color: var(--ink-dim); }
+</style>
+
+<script>
+  const root = document.querySelector(".footnotes");
+  if (root) {
+    const tierFilter = root.querySelector("#tierfilter");
+    const provFilter = root.querySelector("#provfilter");
+    const sections = Array.from(root.querySelectorAll(".tier"));
+    const entries = Array.from(root.querySelectorAll(".entry"));
+    const noMatch = root.querySelector("#nomatch");
+    const state = { tier: "all", prov: "all" };
+
+    function apply() {
+      let anyAtAll = false;
+      entries.forEach((e) => {
+        const provs = (e.dataset.providers || "").split("|").filter(Boolean);
+        const tierOk = state.tier === "all" || e.dataset.tier === state.tier;
+        const provOk = state.prov === "all" || provs.length === 0 || provs.includes(state.prov);
+        const show = tierOk && provOk;
+        e.style.display = show ? "" : "none";
+        if (show) anyAtAll = true;
+      });
+      sections.forEach((s) => {
+        const visible = Array.from(s.querySelectorAll(".entry")).some((e) => e.style.display !== "none");
+        s.style.display = visible ? "" : "none";
+      });
+      if (noMatch) noMatch.hidden = anyAtAll;
+    }
+
+    tierFilter.addEventListener("click", (ev) => {
+      const b = ev.target.closest("button"); if (!b) return;
+      state.tier = b.dataset.tier;
+      tierFilter.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+      apply();
+    });
+    provFilter.addEventListener("change", () => { state.prov = provFilter.value; apply(); });
+
+    apply();
+  }
+</script>
