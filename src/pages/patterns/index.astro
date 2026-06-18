@@ -13,7 +13,6 @@ const patterns = [
 ];
 
 const live = patterns.filter((p) => p.ready);
-const upcoming = patterns.filter((p) => !p.ready);
 ---
 
 <Layout
@@ -36,20 +35,6 @@ const upcoming = patterns.filter((p) => !p.ready);
         </a>
       ))}
     </div>
-
-    {upcoming.length > 0 && (
-      <>
-        <p class="upcoming-head">In progress</p>
-        <div class="card-grid">
-          {upcoming.map((p) => (
-            <div class="card muted">
-              <h2>{p.title}</h2>
-              <p>{p.blurb}</p>
-            </div>
-          ))}
-        </div>
-      </>
-    )}
   </div>
 </Layout>
 
@@ -65,5 +50,4 @@ const upcoming = patterns.filter((p) => !p.ready);
   .patterns-hub .card p { font-size: 0.85rem; color: var(--ink-dim); margin: 0; line-height: 1.45; }
   .patterns-hub .card.muted { opacity: 0.55; }
 
-  .patterns-hub .upcoming-head { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 2rem 0 0; }
 </style>

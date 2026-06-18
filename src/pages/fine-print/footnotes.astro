@@ -29,7 +29,7 @@ const entries = [
   {
     tier: "departure",
     title: "Codes outside the closed taxonomy",
-    observation: "Annex II defines a closed code list, with every moderation action classified against the codes declared in the categories file. Loading the filings grew that list from 86 declared codes to 135. Meta added the most, roughly 41 finer codes, and LinkedIn five, while TikTok and X added none.",
+    observation: "Annex II defines a closed code list, with every moderation action classified against the codes declared in the categories file. Loading the filings grew that list from 86 declared codes to 135. Meta, across its Facebook and Instagram filings, added the most, roughly 41 finer codes, and LinkedIn five, while TikTok and X added none.",
     specimens: [
       { label: "declared", value: "KEYWORD_OTHER" },
       { label: "added", value: "KEYWORD_OTHER_FRAUD_AND_DECEPTION" },
@@ -65,7 +65,7 @@ const entries = [
       { label: "Shein, file 1 date", value: "2026/2/28[Updated 2026/04/30]" },
     ],
     providers: ["Amazon Store", "Shein", "Snapchat"],
-    handling: "We currently hold the original of each, with version comparison planned. The regulation fixed the figures to report but not how to mark a correction to them.",
+    handling: "We show the latest version filed. Amazon's original is held alongside its restatement, but Shein's and Snapchat's originals were not separately retrievable, so for those only the restated figures exist. The regulation fixed the figures to report but not how to mark a correction to them.",
   },
   {
     tier: "notmandated",
@@ -80,10 +80,10 @@ const entries = [
   {
     tier: "notmandated",
     title: "Audience as a band rather than a figure",
-    observation: "Some providers reported audience as a range rather than a single number. Booking reported in units of 100,000, and Google's services reported two separate bases, signed-in accounts and signed-out sessions, which count different things.",
+    observation: "Some providers did not report audience as a single exact number. Booking reported the EU total as a threshold, more than 45 million, confirming only that it clears the very-large-platform line. Google gave no figure in the audience file and pointed to a separate report, whose per-country figures are rounded bands, and which reports two separate bases, signed-in accounts and signed-out sessions, that count different things and have no single total.",
     specimens: [],
     providers: ["Booking.com", "Google Maps", "Google Play", "Google Shopping", "YouTube"],
-    handling: "We store the bands as filed, and where a single comparable figure is needed we use signed-in accounts, labelled, and keep banded providers out of precise per-user rates. The template asks for the figure, and a range departs from it.",
+    handling: "We store banded and threshold values exactly, flag them as non-exact, and suppress per-user rates wherever the audience figure is banded or absent, so a provider that disclosed only a band does not sit on a rate comparison as though it had given a number. Google's two bases are kept separate and no single total is invented. The Commission's <a href=\"https://digital-strategy.ec.europa.eu/en/library/dsa-guidance-requirement-publish-user-numbers\" target=\"_blank\" rel=\"noopener\">guidance on publishing user numbers</a> addresses how active recipients are counted rather than the form the figure takes, and the filings show it still reported in non-comparable ways this cycle.",
   },
   {
     tier: "notmandated",
@@ -156,17 +156,6 @@ const entries = [
   },
   {
     tier: "notmandated",
-    title: "File-naming conventions",
-    observation: "Providers numbered their files without zero-padding, so an alphabetical sort runs 1, 10, 11, 2, and named them readably rather than by the article references the files correspond to.",
-    specimens: [
-      { label: "as filed", value: "5_own_initiative_illegal" },
-      { label: "canonical", value: "05_A151C_Own_Illegal" },
-    ],
-    providers: [],
-    handling: "We rename to one canonical scheme and keep each original alongside it with a suffix. The regulation fixed the files' contents but not their names or order.",
-  },
-  {
-    tier: "notmandated",
     title: "Underspecified indicators",
     observation: "The template named an indicator but not how to compute it. Out-of-court dispute outcomes are reported as a percentage, but a value like 0.403 could mean 40.3 percent or 0.403 percent, and the data cannot resolve which. The Article 9 and Article 10 order-compliance medians were filed without a defined moment for the clock to start.",
     specimens: [
@@ -200,14 +189,6 @@ const entries = [
     specimens: [],
     providers: ["X"],
     handling: "We load a single copy. The repetition is a packaging artefact, not additional data.",
-  },
-  {
-    tier: "other",
-    title: "Late and misnamed filing",
-    observation: "X filed late and misnamed a file within its bundle.",
-    specimens: [],
-    providers: ["X"],
-    handling: "We load the filing as received and note the timeliness and the naming in the import log. This concerns when and how the report arrived rather than what it contained.",
   },
   {
     tier: "other",
@@ -291,7 +272,7 @@ const byTier = (key) => entries.filter((e) => e.tier === key);
                   ))}
                 </div>
               )}
-              <p class="handling">{e.handling}</p>
+              <p class="handling" set:html={e.handling}></p>
             </article>
           ))}
         </section>
@@ -345,6 +326,7 @@ const byTier = (key) => entries.filter((e) => e.tier === key);
   .footnotes .prov { font-size: 0.72rem; color: var(--ink-dim); border: 1px solid var(--border); border-radius: 999px; padding: 0.1rem 0.55rem; }
 
   .footnotes .handling { font-size: 0.85rem; color: var(--ink-dim); margin: 0; line-height: 1.5; padding-left: 0.75rem; border-left: 2px solid var(--border); }
+  .footnotes .handling a { color: var(--ink-dim); text-decoration: underline; text-underline-offset: 2px; }
 
   .footnotes .no-match { font-size: 0.9rem; color: var(--ink-faint); margin-top: 2rem; }
 
