@@ -1,0 +1,91 @@
+---
+// src/pages/fine-print/index.astro
+// The Fine Print hub. The section landing page. Frames the dataset's two
+// governing principles once, ahead of both sub-pages, then links to Method
+// (how the data was built) and Footnotes (the divergence register). Built
+// sub-pages link out; ones still in preparation show muted.
+
+import Layout from "../../layouts/Layout.astro";
+
+const sections = [
+  { slug: "method",    title: "Method",    blurb: "How the dataset is built, and the limits of what can be compared.", ready: false },
+  { slug: "footnotes", title: "Footnotes", blurb: "Every structural divergence from the template this cycle, and what we did to harmonise it.", ready: false },
+];
+const live = sections.filter((s) => s.ready);
+const upcoming = sections.filter((s) => !s.ready);
+---
+
+<Layout
+  title="The Fine Print | RTFP"
+  description="How the RTFP dataset is built, and every place the filings diverged from the harmonised template."
+>
+  <div class="fineprint-hub">
+    <p class="eyebrow">The Fine Print</p>
+    <h1>The Fine Print</h1>
+    <p class="standfirst">
+      The Commission Implementing Regulation 2024/2835 introduced a single template so that disclosure filings could be
+      compared directly. In practice the platforms departed from the template in the form and
+      structure of the data filed. This section sets out how the RTFP dataset was built, and every place a filing
+      diverged from the template and what we did to harmonise the dataset.
+    </p>
+
+    <div class="principles">
+      <p>
+        Every figure is loaded as the provider reported. We harmonise only the form of the data, so that like 
+        compares with like, and never the substance of what a provider reported. This is the fine print.
+      </p>
+      <p>
+        Found an error? <a href="https://github.com/pushkinoxt/rtfp/issues">Let us know!</a></p>
+    </div>
+
+    {live.length > 0 && (
+      <div class="card-grid">
+        {live.map((s) => (
+          <a class="card" href={`/fine-print/${s.slug}`}>
+            <h2>{s.title}</h2>
+            <p>{s.blurb}</p>
+          </a>
+        ))}
+      </div>
+    )}
+
+    {upcoming.length > 0 && (
+      <>
+        <p class="upcoming-head">In progress</p>
+        <div class="card-grid">
+          {upcoming.map((s) => (
+            <div class="card muted">
+              <h2>{s.title}</h2>
+              <p>{s.blurb}</p>
+            </div>
+          ))}
+        </div>
+      </>
+    )}
+
+    <p class="boundary">
+      This section concerns the form of the reports, not their content. It does not assess the accuracy of
+      any figure or the practices of any provider.
+    </p>
+  </div>
+</Layout>
+
+<style>
+  .fineprint-hub .eyebrow { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.6rem; }
+  .fineprint-hub h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.5rem; }
+  .fineprint-hub .standfirst { font-size: 1rem; color: var(--ink-dim); margin: 0 0 0.5rem; max-width: 66ch; }
+
+  .fineprint-hub .principles { margin: 1.2rem 0 0.5rem; max-width: 66ch; }
+  .fineprint-hub .principles p { font-size: 0.92rem; color: var(--ink-dim); margin: 0 0 0.6rem; line-height: 1.5; }
+
+  .fineprint-hub .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .fineprint-hub .card { display: block; border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem 1.2rem; text-decoration: none; color: inherit; transition: border-color 0.15s; }
+  .fineprint-hub a.card:hover { border-color: var(--ink-faint); }
+  .fineprint-hub .card h2 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 0.35rem; }
+  .fineprint-hub .card p { font-size: 0.85rem; color: var(--ink-dim); margin: 0; line-height: 1.45; }
+  .fineprint-hub .card.muted { opacity: 0.55; }
+
+  .fineprint-hub .upcoming-head { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 2rem 0 0; }
+
+  .fineprint-hub .boundary { font-size: 0.82rem; color: var(--ink-faint); max-width: 66ch; margin-top: 1.5rem; line-height: 1.5; }
+</style>
