@@ -8,7 +8,6 @@
 // since the specimens are fixed historical strings. Filter by tier or provider.
 
 import Layout from "../../layouts/Layout.astro";
-import BackToFineprint from "../../components/BackToFineprint.astro";
 
 const TIERS = [
   { key: "departure",   label: "1. Departure from regulation",  short: "Departure",    note: "The regulation stated a requirement and the filing did not meet it." },
@@ -217,7 +216,7 @@ const byTier = (key) => entries.filter((e) => e.tier === key);
   description="Every structural divergence from the harmonised DSA template in the H2 2025 filings, by regulatory tier, and what we did to harmonise it."
 >
   <div class="footnotes">
-    <BackToFineprint />
+    <a class="back-to-fineprint" href="/fine-print">&larr; The Fine Print</a>
     <p class="eyebrow">The Fine Print</p>
     <h1>Footnotes</h1>
     <p class="standfirst">
@@ -297,6 +296,8 @@ const byTier = (key) => entries.filter((e) => e.tier === key);
 </Layout>
 
 <style>
+  .footnotes .back-to-fineprint { display: inline-block; margin-bottom: 1.25rem; font-size: 0.82rem; color: var(--ink-faint); text-decoration: none; }
+  .footnotes .back-to-fineprint:hover { color: var(--ink); }
   .footnotes .eyebrow { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.6rem; }
   .footnotes h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.5rem; }
   .footnotes .standfirst { font-size: 1rem; color: var(--ink-dim); margin: 0 0 0.5rem; max-width: 70ch; line-height: 1.55; }

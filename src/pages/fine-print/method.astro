@@ -2,10 +2,9 @@
 // src/pages/fine-print/method.astro
 // The methodology frame, kept to a short clinical methods note. Procedure,
 // the load-as-filed principle, scope, and the audit boundary. The full
-// divergence register is Footnotes; the technical note is in the repo.
+// divergence register is Footnotes; the exhaustive technical note is in the repo.
 
 import Layout from "../../layouts/Layout.astro";
-import BackToFineprint from "../../components/BackToFineprint.astro";
 ---
 
 <Layout
@@ -13,7 +12,7 @@ import BackToFineprint from "../../components/BackToFineprint.astro";
   description="How the RTFP dataset is built: retrieved, loaded as filed, harmonised in form not substance, and served as a public API."
 >
   <div class="method">
-    <BackToFineprint />
+    <a class="back-to-fineprint" href="/fine-print">&larr; The Fine Print</a>
     <p class="eyebrow">The Fine Print</p>
     <h1>Method</h1>
 
@@ -21,32 +20,34 @@ import BackToFineprint from "../../components/BackToFineprint.astro";
       The dataset covers 22 very large online platforms for the second half of 2025, the first cycle
       reported under Commission Implementing Regulation 2024/2835. We retrieved each provider's published
       filing from its source, loaded it into a Postgres database as filed with one figure per source cell,
-      and harmonised it through numbered SQL migrations. We normalised the form of the data, 
-      recording each change and keeping the original. The transforms, and every divergence that
-      required them, are listed in <a href="/fine-print/footnotes">Footnotes</a>. We then created comparison
+      and harmonised it through numbered SQL migrations. We normalised the form of the data, never its
+      substance, recording each change and keeping the original. The transforms, and every divergence that
+      required them, are listed in <a href="/fine-print/footnotes">Footnotes</a>. We derive comparison
       views over the harmonised data and serve them as a read-only public API, which this site reads at
       build time.
     </p>
 
     <p>
-      Figures are loaded as published and traced to source. Some numbers do not reconcile and there remains 
-      some ambiguous indicators. That's just what was filed.
+      Figures are loaded as published and traced to source. We force no total to reconcile and resolve no
+      ambiguous indicator. Where a figure cannot be made comparable, we say so.
     </p>
 
     <p>
-      The designated search engines are not currently included, but will be in future. Banded audience figures and restatement
+      The designated search engines are out of scope this cycle. Banded audience figures and restatement
       versions are reported as filed and noted in Footnotes.
     </p>
 
     <p>
-      This is not an audit. It records what each provider reported and how, not whether it is accurate. The 
-      technical methodology is in the
+      This is not an audit. It records what each provider reported and how, not whether it is accurate. The
+      exhaustive technical methodology is in the
       <a href="https://github.com/pushkinoxt/rtfp-data" target="_blank" rel="noopener">data repository</a>.
     </p>
   </div>
 </Layout>
 
 <style>
+  .method .back-to-fineprint { display: inline-block; margin-bottom: 1.25rem; font-size: 0.82rem; color: var(--ink-faint); text-decoration: none; }
+  .method .back-to-fineprint:hover { color: var(--ink); }
   .method .eyebrow { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.6rem; }
   .method h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 1rem; }
   .method p { font-size: 0.92rem; color: var(--ink-dim); max-width: 70ch; line-height: 1.6; margin: 0 0 0.9rem; }
