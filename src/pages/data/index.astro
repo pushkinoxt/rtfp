@@ -1,0 +1,50 @@
+---
+// src/pages/data/index.astro
+// The Data section hub. A short landing page that frames the dataset once and
+// links the four ways into it: Patterns, Explore, Sources, API. Mirrors the
+// Fine Print hub. Static, reads no data.
+
+import Layout from "../../layouts/Layout.astro";
+
+const cards = [
+  { slug: "patterns", title: "Patterns", blurb: "Charts drawn from the reports, showing how platforms report rather than ranking them." },
+  { slug: "explore",  title: "Explore",  blurb: "Query every figure in the dataset directly, one view at a time." },
+  { slug: "sources",  title: "Sources",  blurb: "Each provider's filing, its publication date, and a link to the original." },
+  { slug: "api",      title: "API",      blurb: "The whole dataset as a read-only public API." },
+];
+---
+
+<Layout
+  title="Data | RTFP"
+  description="The harmonised DSA transparency dataset and the ways to reach it: patterns, a queryable explorer, the source filings, and a public API."
+>
+  <div class="data-hub">
+    <p class="eyebrow">Data</p>
+    <h1>The dataset</h1>
+    <p class="standfirst">
+      Everything on the site is built from the providers' filings. These are the ways to reach the data
+      directly.
+    </p>
+
+    <div class="card-grid">
+      {cards.map((c) => (
+        <a class="card" href={`/${c.slug}`}>
+          <h2>{c.title}</h2>
+          <p>{c.blurb}</p>
+        </a>
+      ))}
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .data-hub .eyebrow { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.6rem; }
+  .data-hub h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.5rem; }
+  .data-hub .standfirst { font-size: 1rem; color: var(--ink-dim); margin: 0 0 0.5rem; max-width: 66ch; line-height: 1.55; }
+
+  .data-hub .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .data-hub .card { display: block; border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem 1.2rem; text-decoration: none; color: inherit; transition: border-color 0.15s; }
+  .data-hub a.card:hover { border-color: var(--ink-faint); }
+  .data-hub .card h2 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 0.35rem; }
+  .data-hub .card p { font-size: 0.85rem; color: var(--ink-dim); margin: 0; line-height: 1.45; }
+</style>
