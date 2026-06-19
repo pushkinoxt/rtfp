@@ -11,6 +11,7 @@
 
 import Layout from "../../layouts/Layout.astro";
 import { fetchFromSupabase } from "../../lib/supabase.js";
+import { SUPPLEMENTARY_DOCUMENTS } from "../../data/supplementary_documents.js";
 
 export async function getStaticPaths() {
   // Generate one page per provider present in provider_overview.
@@ -124,6 +125,10 @@ const detectionPivot = (() => {
 const detAgg = detectionPivot.filter((r) => isAggScope(r.scope));
 const detLang = detectionPivot.filter((r) => !isAggScope(r.scope));
 const pctAcc = (v) => (v === null || v === undefined ? "—" : `${(Number(v) * 100).toFixed(1)}%`);
+
+// --- Documents filed beyond the eleven harmonised CSVs (static catalogue) ---
+const supDocs = SUPPLEMENTARY_DOCUMENTS[provider];
+const hasSupDocs = Array.isArray(supDocs) && supDocs.length > 0;
 
 // --- AMAR display: official total, designation floor, or per-country aggregate ---
 const amarFloorMatch = (overview.amar_eu_total_raw || "").match(/^\s*>\s*([\d.,]+)/);
@@ -507,6 +512,24 @@ function chartMax(rows) {
     </section>
   )}
 
+  {hasSupDocs && (
+    <section class="data-section">
+      <h3>Beyond the eleven files</h3>
+      <p class="section-intro">
+        Alongside the eleven harmonised CSV files, {providerName} also published the following. These sit
+        outside the comparable dataset and are listed here for completeness.
+      </p>
+      <ul class="doc-list">
+        {supDocs.map((d) => (
+          <li><span class="doc-title">{d.title}.</span> {d.summary}</li>
+        ))}
+      </ul>
+      <p class="section-note">
+        These are published on {providerName}'s own transparency page, linked from <a href="/sources">Sources</a>.
+      </p>
+    </section>
+  )}
+
   <!-- Footer / raw data -->
   <section class="data-section">
     <h3>Raw data</h3>
@@ -621,6 +644,9 @@ function chartMax(rows) {
   .detection-table th:nth-child(n+3) { text-align: right; }
   .detection-table td:nth-child(1), .detection-table td:nth-child(2) { text-align: left; }
   .detection-table td:first-child { max-width: 24rem; }
+  .doc-list { list-style: none; padding: 0; margin: 0 0 1rem; }
+  .doc-list li { font-size: 0.85rem; color: var(--ink-dim); padding: 0.5rem 0; border-bottom: 1px solid var(--border); line-height: 1.5; max-width: 72ch; }
+  .doc-list .doc-title { color: var(--ink); font-weight: 500; }
 
   .amar-agg { display: flex; flex-direction: column; gap: 0.1rem; font-weight: 600; }
   .amar-method { font-size: 0.85rem; color: var(--ink-faint); margin: 0 0 1rem; max-width: 70ch; line-height: 1.5; }
