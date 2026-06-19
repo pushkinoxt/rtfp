@@ -38,6 +38,7 @@ const [
   caveatRows,
   adServiceRows,
   adAppeals,
+  detectionRows,
 ] = await Promise.all([
   fetchFromSupabase("filings_overview", { filters: { provider_slug: eqProvider } }),
   fetchFromSupabase("provider_overview", { filters: { provider_slug: eqProvider } }),
@@ -68,6 +69,7 @@ const [
   }),
   fetchFromSupabase("ad_services", { filters: { provider_slug: eqProvider } }),
   fetchFromSupabase("ad_service_appeals", { filters: { provider_slug: eqProvider } }),
+  fetchFromSupabase("automated_means_accuracy", { filters: { provider_slug: eqProvider } }),
 ]);
 
 const overview = overviewRows[0] ?? {};
@@ -96,6 +98,32 @@ const adService = adServiceRows[0] ?? null;
 const adServiceName =
   adService?.service_name ?? adAppeals[0]?.service_name ?? `${providerName} Ads`;
 const hasAdData = adServiceRows.length > 0 || adAppeals.length > 0;
+
+// --- Automated detection accuracy (file 08): per-provider reported figures ---
+// context is heterogeneous (a tool name for XVideos, XNXX, Pornhub, Google
+// Shopping; a methodology note or nothing for others), and the figures are not
+// comparable across providers. Pivot to one row per (context, scope) carrying the
+// three metric columns, aggregate scopes first, per-language behind a disclosure.
+const hasDetection = detectionRows.length > 0;
+const isAggScope = (s) => s == null || !/^[a-z]{2}$/i.test(String(s).trim());
+const detectionPivot = (() => {
+  const byKey = new Map();
+  for (const r of detectionRows) {
+    const key = `${r.context ?? ""}||${r.scope ?? ""}`;
+    if (!byKey.has(key)) byKey.set(key, { context: r.context ?? null, scope: r.scope ?? null, Accuracy: null, Precision: null, Recall: null });
+    const row = byKey.get(key);
+    if (["Accuracy", "Precision", "Recall"].includes(r.metric)) row[r.metric] = r.value;
+  }
+  return [...byKey.values()].sort((a, b) => {
+    const ag = Number(isAggScope(b.scope)) - Number(isAggScope(a.scope));
+    if (ag) return ag;
+    const c = (a.context ?? "").localeCompare(b.context ?? "");
+    return c || (a.scope ?? "").localeCompare(b.scope ?? "");
+  });
+})();
+const detAgg = detectionPivot.filter((r) => isAggScope(r.scope));
+const detLang = detectionPivot.filter((r) => !isAggScope(r.scope));
+const pctAcc = (v) => (v === null || v === undefined ? "—" : `${(Number(v) * 100).toFixed(1)}%`);
 
 // --- AMAR display: official total, designation floor, or per-country aggregate ---
 const amarFloorMatch = (overview.amar_eu_total_raw || "").match(/^\s*>\s*([\d.,]+)/);
@@ -403,6 +431,63 @@ function chartMax(rows) {
     </section>
   )}
 
+  {hasDetection && (
+    <section class="data-section">
+      <h3>Automated detection accuracy</h3>
+      <p class="section-intro">
+        {providerName} reports the accuracy of its automated detection. These are its own
+        figures, measured against its own method and denominators, and are not comparable
+        with other providers'. The detection tool or method is shown as filed.
+      </p>
+
+      {detAgg.length > 0 && (
+        <table class="data-table detection-table">
+          <thead>
+            <tr><th>Tool or method</th><th>Scope</th><th>Accuracy</th><th>Precision</th><th>Recall</th></tr>
+          </thead>
+          <tbody>
+            {detAgg.map((r) => (
+              <tr>
+                <td>{r.context ?? "—"}</td>
+                <td>{r.scope ?? "—"}</td>
+                <td>{pctAcc(r.Accuracy)}</td>
+                <td>{pctAcc(r.Precision)}</td>
+                <td>{pctAcc(r.Recall)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {detLang.length > 0 && (
+        <details class="notes-details">
+          <summary>Show per-language figures ({detLang.length})</summary>
+          <table class="data-table detection-table">
+            <thead>
+              <tr><th>Tool or method</th><th>Language</th><th>Accuracy</th><th>Precision</th><th>Recall</th></tr>
+            </thead>
+            <tbody>
+              {detLang.map((r) => (
+                <tr>
+                  <td>{r.context ?? "—"}</td>
+                  <td>{r.scope ?? "—"}</td>
+                  <td>{pctAcc(r.Accuracy)}</td>
+                  <td>{pctAcc(r.Precision)}</td>
+                  <td>{pctAcc(r.Recall)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
+
+      <p class="section-note">
+        Full per-tool and per-language detection figures are in
+        <a href="/explore">Explore</a> (<code>automated_means_accuracy</code>).
+      </p>
+    </section>
+  )}
+
   {narratives.length > 0 && (
     <section class="data-section">
       <h3>In {providerName}'s words</h3>
@@ -533,6 +618,9 @@ function chartMax(rows) {
   .data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
   .data-table th { text-align: left; font-weight: 500; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
   .data-table td { text-align: right; font-variant-numeric: tabular-nums; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+  .detection-table th:nth-child(n+3) { text-align: right; }
+  .detection-table td:nth-child(1), .detection-table td:nth-child(2) { text-align: left; }
+  .detection-table td:first-child { max-width: 24rem; }
 
   .amar-agg { display: flex; flex-direction: column; gap: 0.1rem; font-weight: 600; }
   .amar-method { font-size: 0.85rem; color: var(--ink-faint); margin: 0 0 1rem; max-width: 70ch; line-height: 1.5; }
