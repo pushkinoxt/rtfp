@@ -94,6 +94,11 @@ const fmtDate = (d) =>
 // at the current version.
 const isRestated = (filing.version_number ?? 1) > 1;
 
+// Providers known to have restated their report whose original could not be
+// separately retrieved, so only the restated version exists for them here.
+const ORIGINAL_NOT_RETRIEVABLE = new Set(["shein"]);
+const originalNotRetrievable = ORIGINAL_NOT_RETRIEVABLE.has(provider);
+
 // --- Advertising service (Google only): a separate filing, never blended in ---
 const adService = adServiceRows[0] ?? null;
 const adServiceName =
@@ -257,13 +262,20 @@ function chartMax(rows) {
     <div><dt>Established in</dt><dd>{overview.country_of_establishment ?? "—"}</dd></div>
   </dl>
 
-  {isRestated && (
+  {isRestated && !originalNotRetrievable && (
     <p class="restatement-note">
       These are {providerName}'s restated H2 2025 figures (version {filing.version_number},
       published {fmtDate(filing.this_version_published_on)}), which supersede an
       earlier version published {fmtDate(filing.original_published_on)}. Both
       versions are listed on the <a href="/sources">sources page</a>, and a
       side-by-side comparison of the two is planned.
+    </p>
+  )}
+
+  {originalNotRetrievable && (
+    <p class="restatement-note">
+      These are {providerName}'s restated H2 2025 figures. The original version was not separately
+      retrievable, so only this version is shown.
     </p>
   )}
 
