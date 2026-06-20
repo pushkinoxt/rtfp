@@ -1,75 +1,74 @@
 ---
 // src/pages/index.astro
-// RTFP home page — a short introduction and a very short "about", with clear
-// routes into the rest of the site. The headline findings now live at
-// /findings; this page orients a first-time visitor before sending them on.
+// RTFP home. Kept deliberately short: a tight hero, two pulled-out findings as
+// the one prominent element, and a terse grid of routes into the rest of the
+// site. Orient a first-time visitor, give them a reason to look closer, send
+// them on. Headline patterns live under /patterns; the divergences under
+// /fine-print.
 
 import Layout from "../layouts/Layout.astro";
 import { fetchFromSupabase } from "../lib/supabase.js";
 
 const providers = await fetchFromSupabase("provider_overview", {
-  select: "provider_slug,provider_name,amar_eu_total",
+  select: "provider_slug",
 });
+const providerCount = new Set(providers.map((p) => p.provider_slug)).size;
 
-// provider_overview is one row per filing — de-duplicate to one row per provider.
-const seen = new Set();
-const unique = [];
-for (const p of providers) {
-  if (seen.has(p.provider_slug)) continue;
-  seen.add(p.provider_slug);
-  unique.push(p);
-}
-const providerCount = unique.length;
-const totalAmar = unique.reduce((sum, p) => sum + (p.amar_eu_total ?? 0), 0);
-const fmt = (n) => (n == null ? "—" : Number(n).toLocaleString("en-GB"));
-
-const destinations = [
+const findings = [
   {
-    href: "/platforms",
-    name: "Platforms",
-    blurb: "Browse the full filing for any one platform: government orders, notices, moderation, account actions.",
+    statement: "The numbers don't always line up.",
+    detail:
+      "Under one harmonised template, platforms still count the same things in different ways.",
+    href: "/fine-print/footnotes",
+    cue: "Where they diverge",
   },
   {
-    href: "/explore",
-    name: "Explore the data",
-    blurb: "Query every view in the database from the browser. Search, filter, sort and download. No code needed.",
-  },
-  {
-    href: "/sources",
-    name: "Sources",
-    blurb: "Every figure traced back to the provider's own published filing, linked in its canonical location.",
-  },
-  {
-    href: "/api",
-    name: "API",
-    blurb: "The same data as a public read-only REST API. Open credential, documented endpoints.",
+    statement: "Most moderation runs without a human.",
+    detail:
+      "The large majority of enforcement actions are taken by automated systems, not people.",
+    href: "/patterns/automation-share",
+    cue: "See the split",
   },
 ];
 
+const destinations = [
+  { href: "/platforms", name: "Platforms", blurb: "Browse any one platform's full filing." },
+  { href: "/explore", name: "Explore", blurb: "Query the whole database in the browser." },
+  { href: "/patterns", name: "Patterns", blurb: "Composition and coverage across platforms." },
+  { href: "/sources", name: "Sources", blurb: "Every figure traced to its own filing." },
+  { href: "/api", name: "API", blurb: "The same data as a read-only REST API." },
+  { href: "/fine-print", name: "The Fine Print", blurb: "How it is built, and where it diverges." },
+];
+
 const title = "RTFP: Read The Fine Print";
-const description = "A cross-platform comparison of the EU Digital Services Act transparency filings of the largest platforms, loaded into one queryable database.";
+const description =
+  "A cross-platform comparison of the EU Digital Services Act transparency filings of the largest platforms, loaded into one queryable database.";
 ---
 
 <Layout title={title} description={description}>
-  <section class="intro">
-    <h2>DSA transparency report data: all in one place</h2>
-    <p class="lede">
-      Since H2 2025, the largest online platforms have had to file their EU
-      Digital Services Act transparency reports in one harmonised format. For
-      the first time, their numbers can be compared directly. We load those
-      filings into a single normalised database and make it queryable.
+  <section class="hero">
+    <h2>Platform transparency reporting, side by side</h2>
+    <p class="standfirst">
+      Since the second half of 2025, the largest online platforms file their EU
+      Digital Services Act transparency reports to one harmonised template. RTFP
+      loads every filing into a single queryable database, so the figures can
+      finally be compared and the fine print read.
     </p>
     <p class="why">
-      The Commission and others publish lists of where these reports live. As 
-      far as we can tell, the data isn't queryable somewhere, in one place. 
-      Which we thought was, sort of, the point of the Implementing Regulation. 
-      So we made RTFP. Every figure traceable to the provider's own filing, comparable, visible.
+      The reports are public but scattered. As far as we can tell, no one had
+      made them queryable in one place, so we did.
     </p>
-    <p class="scale">
-      Currently covering the H2 2025 filings of {providerCount} platforms. Their
-      combined EU average monthly active recipients come to {fmt(totalAmar)}. More
-      to come.
-    </p>
+    <p class="coverage">{providerCount} platforms · H2 2025 · eleven harmonised files each</p>
+  </section>
+
+  <section class="findings" aria-label="A couple of findings">
+    {findings.map((f) => (
+      <a class="finding" href={f.href}>
+        <span class="finding-statement">{f.statement}</span>
+        <span class="finding-detail">{f.detail}</span>
+        <span class="finding-cue">{f.cue} →</span>
+      </a>
+    ))}
   </section>
 
   <nav class="destinations" aria-label="Site sections">
@@ -83,55 +82,69 @@ const description = "A cross-platform comparison of the EU Digital Services Act 
 
   <section class="footnote">
     <p>
-      RTFP is in a trial phase: an independent, non-commercial comparison built
-      from platforms' self-reported filings. It is not an audit. Read more on
-      the <a href="/about">about page</a>.
+      RTFP is in a trial phase. It is an independent, non-commercial comparison
+      built from platforms' own self-reported filings, and it is not an audit.
+      More on the <a href="/about">about page</a>.
     </p>
   </section>
 </Layout>
 
 <style>
-  .intro { max-width: 42rem; }
-  .intro h2 { margin-bottom: 1.25rem; }
-  .lede { font-size: 1.15rem; color: var(--ink); }
-  .why { color: var(--ink-dim); }
-  .scale {
-    font-size: 0.9rem;
+  .hero { max-width: 44rem; }
+  .hero h2 { font-size: 1.9rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 1.1rem; }
+  .standfirst { font-size: 1.12rem; color: var(--ink); line-height: 1.6; margin: 0 0 1rem; }
+  .why { font-size: 0.96rem; color: var(--ink-dim); line-height: 1.6; margin: 0 0 1.4rem; }
+  .coverage {
+    font-size: 0.84rem;
     color: var(--ink-faint);
     font-variant-numeric: tabular-nums;
-    margin-top: 1.5rem;
+    margin: 0;
   }
+
+  .findings {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.25rem;
+    margin: 2.75rem 0 3rem;
+    padding: 2rem 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  @media (max-width: 620px) { .findings { grid-template-columns: 1fr; gap: 1.75rem; } }
+
+  .finding { display: flex; flex-direction: column; gap: 0.5rem; text-decoration: none !important; }
+  .finding-statement {
+    font-size: 1.4rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+  .finding-detail { font-size: 0.92rem; color: var(--ink-dim); line-height: 1.55; }
+  .finding-cue { font-size: 0.82rem; color: var(--ink-faint); margin-top: 0.15rem; }
+  .finding:hover .finding-statement { text-decoration: underline; text-underline-offset: 3px; }
+  .finding:hover .finding-cue { color: var(--ink-dim); }
 
   .destinations {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin: 3rem 0 2.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 0.85rem;
+    margin: 0 0 2.75rem;
   }
-  @media (max-width: 600px) { .destinations { grid-template-columns: 1fr; } }
-
   .destination {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.3rem;
     background: white;
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 1.25rem 1.4rem;
+    padding: 1rem 1.2rem;
     text-decoration: none !important;
   }
   .destination:hover { border-color: var(--ink-faint); }
-  .destination-name {
-    font-weight: 600;
-    color: var(--ink);
-    font-size: 1.05rem;
-  }
-  .destination-blurb {
-    font-size: 0.9rem;
-    color: var(--ink-dim);
-    line-height: 1.5;
-  }
+  .destination-name { font-weight: 600; color: var(--ink); font-size: 0.98rem; }
+  .destination-blurb { font-size: 0.86rem; color: var(--ink-dim); line-height: 1.45; }
 
   .footnote { border-top: 1px solid var(--border); padding-top: 1.5rem; }
-  .footnote p { font-size: 0.9rem; color: var(--ink-faint); margin: 0; }
+  .footnote p { font-size: 0.9rem; color: var(--ink-faint); margin: 0; max-width: 44rem; }
 </style>
