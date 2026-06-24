@@ -1,0 +1,63 @@
+---
+// src/pages/404.astro
+// Custom not-found page. Astro builds this to 404.html and Vercel serves it for
+// any unmatched route. Kept sober and in the site's tokens, with the main
+// sections one click away so a lost reader is never stuck.
+
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout
+  title="Not found | RTFP"
+  description="The page you asked for isn't here. The main sections are one click away."
+>
+  <div class="notfound">
+    <p class="eyebrow">404</p>
+    <h1>Emptiness.</h1>
+    <p class="lead">
+      The page you asked for does not exist, or it has moved.
+    </p>
+
+    <a class="primary" href="/">Back to the front page &rarr;</a>
+
+    <nav class="sections" aria-label="Main sections">
+      <a href="/platforms">Platforms</a>
+      <span aria-hidden="true">&middot;</span>
+      <a href="/patterns">Patterns</a>
+      <span aria-hidden="true">&middot;</span>
+      <a href="/sources">Sources</a>
+      <span aria-hidden="true">&middot;</span>
+      <a href="/fine-print">The Fine Print</a>
+    </nav>
+  </div>
+</Layout>
+
+<style>
+  .notfound { padding-top: 1rem; }
+  .notfound .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-faint); margin: 0 0 0.6rem;
+  }
+  .notfound h1 {
+    font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em;
+    margin: 0 0 1rem;
+  }
+  .notfound .lead {
+    font-size: 0.92rem; color: var(--ink-dim); max-width: 60ch;
+    line-height: 1.6; margin: 0 0 1.5rem;
+  }
+  .notfound .primary {
+    display: inline-block; font-size: 0.95rem; color: var(--ink);
+    text-decoration: underline; text-underline-offset: 2px;
+    margin-bottom: 1.75rem;
+  }
+  .notfound .primary:hover { color: var(--ink-dim); }
+  .notfound .sections {
+    display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+    font-size: 0.82rem;
+  }
+  .notfound .sections a { color: var(--ink-faint); text-decoration: none; }
+  .notfound .sections a:hover { color: var(--ink); }
+  .notfound .sections span { color: var(--border); }
+</style>

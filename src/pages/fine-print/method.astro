@@ -5,6 +5,15 @@
 // divergence register is Footnotes; the exhaustive technical note is in the repo.
 
 import Layout from "../../layouts/Layout.astro";
+import { fetchFromSupabase } from "../../lib/supabase.js";
+
+// Provider count is read from the data, not hard-coded, so it stays correct as
+// providers are added. Distinct slug guards against the multi-service rows
+// (e.g. a provider's main and ads filings both appear in provider_overview).
+const providers = await fetchFromSupabase("provider_overview", {
+  select: "provider_slug",
+});
+const providerCount = new Set(providers.map((p) => p.provider_slug)).size;
 ---
 
 <Layout
@@ -17,7 +26,7 @@ import Layout from "../../layouts/Layout.astro";
     <h1>Method</h1>
 
     <p>
-      The dataset covers 22 very large online platforms for the second half of 2025, the first cycle
+      The dataset covers {providerCount} very large online platforms for the second half of 2025, the first cycle
       reported under Commission Implementing Regulation 2024/2835. We retrieved each provider's published
       filing from its source, loaded it into a Postgres database as filed with one figure per source cell,
       and harmonised it through numbered SQL migrations. We normalised the form of the data and recorded 
