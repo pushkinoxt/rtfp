@@ -299,13 +299,30 @@ function chartMax(rows) {
   </dl>
 
   {isRestated && !originalNotRetrievable && (
-    <p class="restatement-note">
-      These are {providerName}'s restated H2 2025 figures (version {filing.version_number},
-      published {fmtDate(filing.this_version_published_on)}), which supersede an
-      earlier version published {fmtDate(filing.original_published_on)}. Both
-      versions are listed on the <a href="/sources">sources page</a>, and a
-      side-by-side comparison of the two is planned.
-    </p>
+    <div class="restatement-block">
+      <p class="restatement-statement">
+        These are {providerName}'s restated H2 2025 figures (version {filing.version_number},
+        published {fmtDate(filing.this_version_published_on)}), which supersede an
+        earlier version published {fmtDate(filing.original_published_on)}. Both
+        versions are listed on the <a href="/sources">sources page</a>.
+      </p>
+      {(restFigure || restNote) && (
+        <div class="restatement-changed">
+          <p class="restatement-changed-label">What the restatement changed</p>
+          {restFigure && (
+            <div class="restatement-figure">
+              <span class="rf-metric">{restFigure.label}</span>
+              <span class="rf-values">
+                <span class="rf-from">{fmt(restFigure.original)}</span>
+                <span class="rf-arrow" aria-hidden="true">&rarr;</span>
+                <span class="rf-to">{fmt(restFigure.restated)}</span>
+              </span>
+            </div>
+          )}
+          {restNote && <p class="restatement-changed-text">{restNote}</p>}
+        </div>
+      )}
+    </div>
   )}
 
   {originalNotRetrievable && (
@@ -313,27 +330,6 @@ function chartMax(rows) {
       These are {providerName}'s restated H2 2025 figures. The original version was not separately
       retrievable, so only this version is shown.
     </p>
-  )}
-
-  {restFigure && (
-    <div class="restatement-detail">
-      <p class="restatement-detail-label">What the restatement changed</p>
-      <div class="restatement-figure">
-        <span class="rf-metric">{restFigure.label}</span>
-        <span class="rf-values">
-          <span class="rf-from">{fmt(restFigure.original)}</span>
-          <span class="rf-arrow" aria-hidden="true">&rarr;</span>
-          <span class="rf-to">{fmt(restFigure.restated)}</span>
-        </span>
-      </div>
-    </div>
-  )}
-
-  {restNote && (
-    <div class="restatement-detail">
-      <p class="restatement-detail-label">What the restatement changed</p>
-      <p class="restatement-detail-text">{restNote}</p>
-    </div>
   )}
 
   {amarHasAggregate && (
@@ -688,13 +684,24 @@ function chartMax(rows) {
     margin-bottom: 2rem;
   }
 
-  .restatement-detail {
-    border: 1px solid var(--border);
+  .restatement-block {
+    background: #fef9e7;
+    border: 1px solid #f0e0a0;
     border-radius: 6px;
     padding: 0.75rem 1rem;
-    margin: 0 0 2rem;
+    margin-bottom: 2rem;
   }
-  .restatement-detail-label {
+  .restatement-statement {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .restatement-changed {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #f0e0a0;
+  }
+  .restatement-changed-label {
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
     font-size: 0.7rem;
     letter-spacing: 0.06em;
@@ -702,7 +709,7 @@ function chartMax(rows) {
     color: var(--ink-faint);
     margin: 0 0 0.6rem;
   }
-  .restatement-detail-text {
+  .restatement-changed-text {
     font-size: 0.88rem;
     color: var(--ink-dim);
     line-height: 1.55;
