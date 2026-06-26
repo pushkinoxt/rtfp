@@ -12,6 +12,7 @@
 import Layout from "../../layouts/Layout.astro";
 import { fetchFromSupabase } from "../../lib/supabase.js";
 import { SUPPLEMENTARY_DOCUMENTS } from "../../data/supplementary_documents.js";
+import { RESTATEMENTS } from "../../data/restatements.js";
 
 export async function getStaticPaths() {
   // Generate one page per provider present in provider_overview.
@@ -198,6 +199,41 @@ const tcTotal = moderationVolume.find(r => r.basis === "tc" && r.level === "tota
 const illegalTotal = moderationVolume.find(r => r.basis === "illegal" && r.level === "total");
 const tcAutomation = automationRows.find(r => r.basis === "tc");
 
+// --- Restatement detail (config-driven): a figure panel or a specific note ---
+// The generic note already states this is a restated version. This adds the
+// specifics. For a figure restatement we read the moved figure from BOTH
+// versions so both numbers come from the data and cannot drift; for a re-issue
+// we show the configured note. Providers absent from RESTATEMENTS show neither.
+const restatement = RESTATEMENTS[provider] ?? null;
+const restNote = restatement?.form === "note" ? restatement.note : null;
+
+// The immediate previous version, when filings_overview returned it (it joins
+// every version). Used to read the original figure for a figure restatement.
+const prevFiling = filingRows
+  .filter((f) => (f.version_number ?? 1) < (filing.version_number ?? 1))
+  .sort((a, b) => (b.version_number ?? 1) - (a.version_number ?? 1))[0] ?? null;
+
+let restFigure = null;
+if (restatement?.form === "figures" && restatement.metric && prevFiling?.filing_id) {
+  const basis = restatement.metric.basis;
+  const table = basis === "illegal" ? "own_initiative_illegal" : "own_initiative_tc";
+  // Read the grand-total row (category_code TOTAL) of the previous version, the
+  // same row the moderation view surfaces as level 'total' for the current one.
+  const prevTotalRows = await fetchFromSupabase(table, {
+    filters: { filing_id: `eq.${prevFiling.filing_id}`, category_code: "eq.TOTAL" },
+  });
+  const originalValue = prevTotalRows[0]?.measures_total ?? null;
+  const restatedValue =
+    (basis === "illegal" ? illegalTotal : tcTotal)?.measures_total ?? null;
+  if (originalValue != null && restatedValue != null) {
+    restFigure = {
+      label: restatement.metric.label,
+      original: originalValue,
+      restated: restatedValue,
+    };
+  }
+}
+
 // Restriction-type breakdown from the ToS TOTAL row.
 const restrictionRows = tcTotal
   ? [
@@ -277,6 +313,27 @@ function chartMax(rows) {
       These are {providerName}'s restated H2 2025 figures. The original version was not separately
       retrievable, so only this version is shown.
     </p>
+  )}
+
+  {restFigure && (
+    <div class="restatement-detail">
+      <p class="restatement-detail-label">What the restatement changed</p>
+      <div class="restatement-figure">
+        <span class="rf-metric">{restFigure.label}</span>
+        <span class="rf-values">
+          <span class="rf-from">{fmt(restFigure.original)}</span>
+          <span class="rf-arrow" aria-hidden="true">&rarr;</span>
+          <span class="rf-to">{fmt(restFigure.restated)}</span>
+        </span>
+      </div>
+    </div>
+  )}
+
+  {restNote && (
+    <div class="restatement-detail">
+      <p class="restatement-detail-label">What the restatement changed</p>
+      <p class="restatement-detail-text">{restNote}</p>
+    </div>
   )}
 
   {amarHasAggregate && (
@@ -630,6 +687,44 @@ function chartMax(rows) {
     padding: 0.75rem 1rem;
     margin-bottom: 2rem;
   }
+
+  .restatement-detail {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin: 0 0 2rem;
+  }
+  .restatement-detail-label {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 0.6rem;
+  }
+  .restatement-detail-text {
+    font-size: 0.88rem;
+    color: var(--ink-dim);
+    line-height: 1.55;
+    margin: 0;
+    max-width: 70ch;
+  }
+  .restatement-figure {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 1.25rem;
+    justify-content: space-between;
+  }
+  .rf-metric { font-size: 0.88rem; color: var(--ink-dim); }
+  .rf-values {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.95rem;
+    white-space: nowrap;
+  }
+  .rf-from { color: var(--ink-faint); }
+  .rf-arrow { color: var(--ink-faint); margin: 0 0.2rem; }
+  .rf-to { color: var(--ink); font-weight: 600; }
 
   .data-section { margin: 2.5rem 0; }
   .data-section h3 { margin-bottom: 0.1rem; }
