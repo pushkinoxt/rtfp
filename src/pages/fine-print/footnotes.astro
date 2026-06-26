@@ -64,7 +64,19 @@ const entries = [
       { label: "Shein, file 1 date", value: "2026/2/28[Updated 2026/04/30]" },
     ],
     providers: ["Amazon Store", "Shein", "Snapchat"],
-    handling: "We show the latest version filed. Amazon's original is held alongside its restatement, but Shein's and Snapchat's originals were not separately retrievable, so for those only the restated figures exist. The regulation fixed the figures to report but not how to mark a correction to them.",
+    handling: "We show the latest version filed. Amazon Store's and Snapchat's originals are held alongside their restatements, but Shein's was not separately retrievable, so for that one only the restated figures exist. The regulation fixed the figures to report but not how to mark a correction to them.",
+  },
+  {
+    tier: "notmandated",
+    title: "Detection accuracy expressed several ways",
+    observation: "File 8 records the accuracy, precision and recall of automated detection. The regulation does not fix the form these figures take, and the filings varied. Most providers gave them as decimal fractions, while Booking, AliExpress, Temu and Snapchat gave them as percentages. Snapchat went further and left its aggregate figures as a placeholder of 1, reporting the real values only per country, where accuracy ran from 0.69 to 0.92.",
+    specimens: [
+      { label: "as a decimal", value: "0.84" },
+      { label: "as a percentage", value: "95.31%" },
+      { label: "Snapchat aggregate", value: "1" },
+    ],
+    providers: ["Booking", "AliExpress", "Temu", "Snapchat"],
+    handling: "We read percentages and decimals onto the same scale of 0 to 1 so the figures compare, and we suppress Snapchat's placeholder aggregate, showing its per-country figures instead. The regulation set out these measures but not the form they take.",
   },
   {
     tier: "notmandated",
