@@ -234,6 +234,12 @@ const inDataSection = DATA_ROUTES.some((p) => isActive(p));
       }
       .page-footer p { margin: 0 0 0.5rem; }
       .page-footer a { color: var(--ink-faint); }
+      .page-footer .footer-legal {
+        margin-top: 0.85rem;
+        padding-top: 0.85rem;
+        border-top: 1px solid var(--border);
+        font-size: 0.8rem;
+      }
     </style>
   </head>
 
@@ -279,6 +285,9 @@ const inDataSection = DATA_ROUTES.some((p) => isActive(p));
           Data is publicly queryable. See the <a href="/api">API documentation</a>.
         </p>
       </slot>
+      <p class="footer-legal">
+        <a href="/legal">Legal</a> &middot; Text and data under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>
+      </p>
     </footer>
 
     <script>

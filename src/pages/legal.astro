@@ -1,0 +1,83 @@
+---
+// src/pages/legal.astro
+// A single legal page: what the site is, how to treat the data, copyright and
+// reuse, and privacy. Plain and short, in keeping with the rest of the site.
+
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout
+  title="Legal | RTFP"
+  description="What RTFP is, how to treat the data, copyright and reuse, and privacy."
+>
+  <div class="legal">
+    <p class="eyebrow">Legal</p>
+    <h1>Legal</h1>
+
+    <p class="lead">
+      RTFP is an independent project that puts the platforms' DSA
+      transparency reports side by side. There is no company behind it and nothing
+      for sale. Nothing here is legal or professional advice.
+    </p>
+
+    <h2>The data</h2>
+    <p>
+      Every figure comes from a platform's own filing under the Digital Services
+      Act. We load and arrange those filings and fix obvious loading faults where
+      we find them, with each fix recorded in the
+      <a href="/fine-print/footnotes">divergence register</a>. We do not audit the
+      platforms or check that what they filed is true. The
+      site and its data are provided as they are, with no warranty. If you find an error in our
+      handling, <a href="https://github.com/pushkinoxt/rtfp/issues" target="_blank" rel="noopener">open an issue</a>
+      and we will look at it.
+    </p>
+
+    <h2>Copyright and reuse</h2>
+    <p>
+      RTFP's own work, meaning the writing on this site and the compiled dataset, is
+      licensed under
+      <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">Creative Commons BY-SA 4.0</a>.
+      In short, you may use any of it for any purpose, including commercially, and
+      adapt it how you wish, as long as you credit RTFP and release anything you
+      build from it under the same licence. We would like to know, but
+      you do not have to. The underlying filings belong to the platforms that filed
+      them and are public records under the Act, so they are not ours to license.
+      The <a href="https://github.com/pushkinoxt/rtfp" target="_blank" rel="noopener">source code</a>
+      is public. The site is open to the Internet, so everything on it will be
+      crawled by search engines and other agents, and we expect it will be used to
+      train large language models and the like.
+    </p>
+
+    <h2>Privacy</h2>
+    <p>
+      There are no accounts and no comment fields, and the site collects no personal
+      information from you directly. It sets no cookies and stores nothing on your
+      device, so there is no consent banner. We use Vercel Web Analytics to count
+      visits and see which pages are read. It is cookieless, records only aggregate
+      figures such as the page, the referrer, an approximate location and the device
+      type, and identifies visitors by a hash that resets every 24 hours, so nobody
+      can be followed from one day to the next or across sites. None of it is tied to
+      a person. The site is served by Vercel, whose handling of requests is covered
+      by its
+      <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener">privacy notice</a>.
+      We run no advertising, and we do not sell or share any data.
+    </p>
+  </div>
+</Layout>
+
+<style>
+  .legal { max-width: 70ch; }
+  .legal .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 0.6rem;
+  }
+  .legal h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 1rem; }
+  .legal h2 { font-size: 1.05rem; font-weight: 600; margin: 1.75rem 0 0.5rem; }
+  .legal p { font-size: 0.92rem; color: var(--ink-dim); line-height: 1.6; margin: 0 0 0.85rem; }
+  .legal .lead { color: var(--ink); }
+  .legal a { color: var(--ink); }
+</style>
