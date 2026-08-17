@@ -1,0 +1,62 @@
+---
+// src/pages/data/dumps/index.astro
+// The human-readable index of the static data snapshots. Lists every public
+// view with its JSON and CSV file. Reads no data at build time, it only walks
+// the DUMP_VIEWS list that generates the files themselves.
+
+import Layout from "../../../layouts/Layout.astro";
+import { DUMP_VIEWS } from "../../../lib/dumps.js";
+---
+
+<Layout
+  title="Data dumps | RTFP"
+  description="Static snapshots of every public RTFP view, in JSON and CSV, rebuilt on each deploy."
+>
+  <div class="dumps">
+    <p class="eyebrow">Data</p>
+    <h1>Snapshots</h1>
+    <p class="standfirst">
+      Every public view as a plain file, rebuilt each time the site is deployed. These are served as
+      static files, so they are the right way to take the whole dataset. The
+      <a href="/api">API</a> stays available for filtered and interactive queries.
+    </p>
+
+    <p class="meta">
+      {DUMP_VIEWS.length} views. A machine-readable list of everything below is at
+      <a href="/data/dumps/index.json">/data/dumps/index.json</a>.
+    </p>
+
+    <ul class="dump-list">
+      {DUMP_VIEWS.map((view) => (
+        <li>
+          <span class="name">{view}</span>
+          <span class="files">
+            <a href={`/data/dumps/${view}.json`}>JSON</a>
+            <a href={`/data/dumps/${view}.csv`}>CSV</a>
+          </span>
+        </li>
+      ))}
+    </ul>
+
+    <p class="footnote">
+      The figures are the providers' own filings, reproduced as filed. See
+      <a href="/fine-print/method">Method</a> for how the dataset is built and
+      <a href="/fine-print/footnotes">Footnotes</a> for where the filings diverge.
+    </p>
+  </div>
+</Layout>
+
+<style>
+  .dumps .eyebrow { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.6rem; }
+  .dumps h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.5rem; }
+  .dumps .standfirst { font-size: 1rem; color: var(--ink-dim); margin: 0 0 0.9rem; max-width: 66ch; line-height: 1.55; }
+  .dumps .meta { font-size: 0.85rem; color: var(--ink-faint); margin: 0 0 1.4rem; max-width: 66ch; }
+
+  .dumps .dump-list { list-style: none; padding: 0; margin: 0 0 2rem; border-top: 1px solid var(--border); }
+  .dumps .dump-list li { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 0.55rem 0; border-bottom: 1px solid var(--border); }
+  .dumps .dump-list .name { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.85rem; }
+  .dumps .dump-list .files { display: flex; gap: 0.9rem; flex: none; }
+  .dumps .dump-list .files a { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.78rem; color: var(--ink-dim); }
+
+  .dumps .footnote { font-size: 0.85rem; color: var(--ink-faint); max-width: 66ch; line-height: 1.5; }
+</style>

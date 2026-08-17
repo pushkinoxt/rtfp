@@ -7,15 +7,9 @@
 // for light interactive use, and bulk consumers take the dumps instead. Runs at
 // build time only, alongside the rest of the static build.
 
-const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+import { fetchWithRetry } from "./supabase.js";
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  throw new Error(
-    "Missing PUBLIC_SUPABASE_URL or PUBLIC_SUPABASE_PUBLISHABLE_KEY. " +
-    "Check the .env file locally, and check Environment Variables in Vercel for deploys."
-  );
-}
+const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL;
 
 // The public views, in the same order they appear on the API documentation page.
 // Keep this list in step with src/pages/api.astro.
@@ -65,18 +59,7 @@ export async function fetchAllRows(view) {
     url.searchParams.set("limit", String(PAGE_SIZE));
     url.searchParams.set("offset", String(offset));
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-      },
-    });
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Dump fetch failed for "${view}" (${response.status}): ${body}`);
-    }
-
+    const response = await fetchWithRetry(url.toString(), `dump "${view}"`);
     const page = await response.json();
     rows.push(...page);
     if (page.length < PAGE_SIZE) break;
