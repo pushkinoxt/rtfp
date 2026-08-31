@@ -13,6 +13,10 @@ import "@fontsource/source-serif-4/600.css";
 
 const { title, description } = Astro.props;
 
+// Temporary site-wide notice, shown as a band above the header on every page.
+// Set to null to remove it everywhere. Nothing else needs changing.
+const SITE_NOTICE = "The H1 2026 filings are being published now. RTFP currently shows H2 2025. We are loading the new cycle and it will take us a little time.";
+
 const PUBLIC_URL = "https://rtfp.io";
 const canonicalURL = new URL(Astro.url.pathname, PUBLIC_URL).href;
 const ogImage = `${PUBLIC_URL}/og.png`;
@@ -63,6 +67,7 @@ const inDataSection = DATA_ROUTES.some((p) => isActive(p));
         --border: #e7e5e4;
         --code-bg: #f0eee9;
         --accent: #1b4d6b;
+        --accent-wash: #eef3f7;
         --content-width: 56rem;
         --content-width-wide: 64rem;
         --measure: 38rem;
@@ -115,6 +120,34 @@ const inDataSection = DATA_ROUTES.some((p) => isActive(p));
       .wide .page-main,
       .wide .page-footer {
         max-width: var(--content-width-wide);
+      }
+
+      /* Temporary notice band above the header. Full bleed background with
+         the text held to the same measure as the page. Removed automatically
+         when SITE_NOTICE is null. */
+      .site-notice {
+        background: var(--accent-wash);
+        border-bottom: 1px solid var(--border);
+      }
+      .site-notice p {
+        max-width: var(--content-width);
+        margin: 0 auto;
+        padding: 0.7rem 1.5rem;
+        font-size: 0.85rem;
+        line-height: 1.5;
+        color: var(--ink-dim);
+      }
+      .wide .site-notice p {
+        max-width: var(--content-width-wide);
+      }
+      .site-notice-label {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-right: 0.6rem;
+        white-space: nowrap;
       }
 
       .page-header {
@@ -277,6 +310,11 @@ const inDataSection = DATA_ROUTES.some((p) => isActive(p));
   </head>
 
   <body class={Astro.props.wide ? "wide" : ""}>
+    {SITE_NOTICE && (
+      <div class="site-notice">
+        <p><span class="site-notice-label">Notice</span>{SITE_NOTICE}</p>
+      </div>
+    )}
     <header class="page-header">
       <h1><a href="/" class="wordmark">RTFP</a></h1>
       <nav>
